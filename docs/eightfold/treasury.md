@@ -2,13 +2,41 @@
 
 Treasury is the Eightfold distribution layer. Users discover capabilities and install them on demand. A capability ships as an *adaptation*: a plugin source archive plus a manifest that declares identity, permissions, and compatibility.
 
+Treasury may also publish named *bundles*. A bundle is only a registry-level list of adaptation ids; it does not introduce another plugin format. The Harness expands the bundle and installs each referenced adaptation through the same validated installer path.
+
+## CLI
+
+Inspect the public registry:
+
+```bash
+dsh eightfold treasury list
+dsh eightfold treasury search <query>
+```
+
+Install and manage individual adaptations:
+
+```bash
+dsh eightfold add <name>
+dsh eightfold remove <name>
+dsh eightfold update [name]
+```
+
+Inspect and install named bundles:
+
+```bash
+dsh eightfold bundle list
+dsh eightfold bundle add <name>
+```
+
+For example, if Treasury publishes a `developer` bundle containing `hello-eightfold` and `session-search`, `dsh eightfold bundle add developer` installs each missing adaptation and leaves adaptations that are already present untouched.
+
 ## Install flow
 
-`eightfold add <name>` runs the following pipeline:
+`dsh eightfold add <name>` runs the following pipeline:
 
 ```text
 User
-  -> eightfold add <name>
+  -> dsh eightfold add <name>
   -> Eightfold CLI
   -> Treasury Registry          (name -> adaptation descriptor)
   -> resolve adaptation
@@ -19,6 +47,8 @@ User
   -> register plugin            (profile package.json and bundles list)
   -> update local profile
 ```
+
+`dsh eightfold bundle add <name>` first resolves the named bundle to adaptation ids, then runs the same installation pipeline for each adaptation. Bundle membership is validated when the registry is parsed: unknown and duplicate adaptation ids are rejected.
 
 Each arrow is a distinct step with its own failure and log point.
 
