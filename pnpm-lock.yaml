@@ -8198,6 +8198,15 @@ importers:
         specifier: workspace:^
         version: link:../../interaction/user-questions
 
+  packages/treasury/treasury:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+
   packages/typert/generator:
     dependencies:
       '@jridgewell/gen-mapping':
