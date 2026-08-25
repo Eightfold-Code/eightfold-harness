@@ -17,6 +17,9 @@ const registryFixture = {
       compatibility: { eightfoldHarness: '>=0.1.0' },
     },
   },
+  bundles: {
+    developer: ['hello-eightfold'],
+  },
 }
 
 describe('parseRegistry', () => {
@@ -25,6 +28,12 @@ describe('parseRegistry', () => {
     expect(registry.schemaVersion).toBe(REGISTRY_SCHEMA_VERSION)
     expect(Object.keys(registry.adaptations)).toEqual(['hello-eightfold'])
     expect(registry.adaptations['hello-eightfold']?.source.branch).toBe('adaptation/hello-eightfold')
+    expect(registry.bundles.developer).toEqual(['hello-eightfold'])
+  })
+
+  it('accepts a registry without bundles', () => {
+    const { bundles: _bundles, ...withoutBundles } = registryFixture
+    expect(parseRegistry(withoutBundles).bundles).toEqual({})
   })
 
   it('accepts an explicit commit pin', () => {
@@ -67,6 +76,17 @@ describe('parseRegistry', () => {
       schemaVersion: 1,
       adaptations: { x: { ...registryFixture.adaptations['hello-eightfold'], compatibility: { eightfoldHarness: 1 } } },
     })).toThrow('registry.adaptations.x.compatibility.eightfoldHarness must be a string')
+  })
+
+  it('rejects malformed bundles and dangling adaptation ids', () => {
+    expect(() => parseRegistry({ ...registryFixture, bundles: { developer: 'hello-eightfold' } }))
+      .toThrow('registry.bundles.developer must be an array')
+    expect(() => parseRegistry({ ...registryFixture, bundles: { developer: [42] } }))
+      .toThrow('registry.bundles.developer[0] must be a string')
+    expect(() => parseRegistry({ ...registryFixture, bundles: { developer: ['hello-eightfold', 'hello-eightfold'] } }))
+      .toThrow('registry.bundles.developer must not contain duplicate adaptations')
+    expect(() => parseRegistry({ ...registryFixture, bundles: { developer: ['missing'] } }))
+      .toThrow('registry.bundles.developer references unknown adaptation "missing"')
   })
 
   it('accepts an absent optional source commit', () => {
