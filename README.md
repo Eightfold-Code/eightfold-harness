@@ -1,61 +1,132 @@
 # Eightfold Harness
 
-English | [中文](README.zh.md)
+Eightfold Harness is an adaptive, modular agent runtime built on the plugin
+architecture of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
+It keeps the underlying Cordis model — **everything is a plugin** — and adds an
+Eightfold distribution layer called **Treasury** for discovering, pinning,
+downloading, and activating capabilities on demand.
 
-Eightfold Harness (`dsh`) is a modular agent runtime built around composable capabilities.
-
-It is based on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and retains its plugin-oriented architecture: **everything is a plugin**, powered by [Cordis](https://github.com/cordiverse/cordis).
-
-Eightfold extends the harness with a distribution layer called Treasury, which lets capabilities be discovered and installed on demand.
-
-## Developer preview
-
-DeepSeek Harness is currently in _developer preview_ and is iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
-
-## Run
-
-### Run from `npm`
-
-Install `Node.js`, then run:
-
-```sh
-npx @deepseek-ai/dsh web
+```text
+Eightfold
+├── eightfold-harness   runtime, profiles, CLI, plugin host
+└── eightfold-treasury  registry, adaptations, named bundles
 ```
 
-The command starts the Web UI at `http://127.0.0.1:3080` by default and opens it in the default browser for a local launch. An SSH launch only prints the host URL because the SSH client or editor owns the local forwarded address. Pass `--no-open` to run the server without opening a browser. See [Web UI guide](docs/user/guide/index.md).
+Eightfold is currently a developer project and tracks a rapidly evolving
+upstream. Compatibility can change while the distribution and lifecycle
+contracts are being stabilized.
 
-### Run from source
+## Bootstrap from source
 
-To run from a repository checkout:
+Clone Eightfold Harness and install the workspace:
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
+git clone https://github.com/Eightfold-Code/eightfold-harness.git
+cd eightfold-harness
 pnpm install
 pnpm run build
-pnpm dsh web
 ```
 
-`pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding.
+Run the existing Harness surfaces as usual:
 
-## Community and support
+```sh
+pnpm dsh web
+pnpm dsh --profile tui
+```
 
-- Feel free to submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
-- Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to your plugin repository for discoverability.
-- Join <a href="https://discord.gg/Ycq5dCaS4">DeepSeek Harness Discord community</a>.
+The internal package names are still largely `@deepseek-ai/*` because Eightfold
+is intentionally staying close to upstream during the bootstrap phase. Renaming
+package namespaces is not required for Treasury and would create unnecessary
+divergence today.
 
-## Contributing
+## Treasury
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+Treasury is the distribution source for Eightfold adaptations:
+
+```text
+https://github.com/Eightfold-Code/eightfold-treasury
+```
+
+Inspect the live registry:
+
+```sh
+pnpm dsh eightfold treasury list
+pnpm dsh eightfold treasury search session
+```
+
+Install a pinned adaptation under the Eightfold home:
+
+```sh
+pnpm dsh eightfold add session-search
+```
+
+Install and activate it in a normal Harness profile:
+
+```sh
+pnpm dsh eightfold add session-search --profile tui
+```
+
+Named Treasury bundles work through the same path:
+
+```sh
+pnpm dsh eightfold add developer --profile tui
+```
+
+The `developer` bundle currently demonstrates multi-adaptation resolution with:
+
+- `hello-eightfold` — a minimal native Harness/Cordis plugin package;
+- `session-search` — a useful configuration adaptation that enables persistent
+  full-text session search using Harness's existing SQLite query plugin.
+
+Treasury downloads exact commit archives rather than cloning all adaptation
+branches. Stable public registry entries are commit-pinned for reproducibility.
+When `--profile` is supplied, Eightfold delegates activation to the existing
+`dsh plugin` profile manager rather than maintaining a second plugin runtime.
+
+See:
+
+- [Treasury architecture](docs/eightfold/treasury.md)
+- [Activation lifecycle](docs/eightfold/lifecycle.md)
+- [Registry integrity](docs/eightfold/registry-integrity.md)
+- [Eightfold roadmap](docs/eightfold/roadmap.md)
+
+## Upstream relationship
+
+Eightfold Harness is derived from DeepSeek Harness and preserves its MIT license
+and attribution. The upstream repository is the source of the core Harness and
+Cordis architecture; Eightfold-specific work should remain a compatible
+extension wherever practical.
+
+When syncing upstream changes, keep the Eightfold distribution layer isolated
+and review conflicts rather than mechanically replacing Eightfold-specific
+files.
 
 ## Development
 
-Start with the [development guide](docs/development.md) and [architecture documentation](docs/architecture.md).
+Run the normal repository checks before merging changes:
 
-For agents, follow [AGENTS.md](AGENTS.md).
+```sh
+pnpm run lint
+pnpm run typecheck
+pnpm run test
+pnpm run build
+```
+
+The Eightfold live distribution proof is available as:
+
+```sh
+bash scripts/eightfold-e2e.sh
+```
+
+It exercises the public Treasury, pinned adaptation downloads, named bundle
+expansion, native profile activation, and execution of an installed adaptation.
+
+Start with the upstream-derived [development guide](docs/development.md) and
+[architecture documentation](docs/architecture.md). For agents, follow
+[AGENTS.md](AGENTS.md).
 
 ## License
 
 [MIT](LICENSE)
 
-Third-party dependencies and their licenses are disclosed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Upstream attribution is documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
