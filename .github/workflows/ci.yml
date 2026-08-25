@@ -1,12 +1,15 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
+
 permissions:
   contents: read
 
-# Cancel a superseded pull-request run on a new push so a fresh head does not
-# queue a second full run behind a stale one.
+# Cancel a superseded run on a new push so a fresh head does not queue a
+# second full run behind a stale one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
