@@ -48,6 +48,8 @@ interface PluginInvocation {
 export type EightfoldCommand =
   | { readonly command: 'treasury-list' }
   | { readonly command: 'treasury-search'; readonly query: string }
+  | { readonly command: 'bundle-list' }
+  | { readonly command: 'bundle-add'; readonly name: string }
   | { readonly command: 'add'; readonly name: string }
   | { readonly command: 'remove'; readonly name: string }
   | { readonly command: 'update'; readonly name?: string }
@@ -211,6 +213,18 @@ export function parseDshArgs(argv: readonly string[], version: string): DshInvoc
       rejectParentOptions('eightfold')
       if (query.length === 0) program.error('error: eightfold treasury search needs a query')
       resolved = { mode: 'eightfold', command: { command: 'treasury-search', query } }
+    })
+  const bundle = eightfold.command('bundle').description('inspect or install named Treasury bundles')
+  bundle.command('list').description('list all bundles and their adaptations')
+    .action(() => {
+      rejectParentOptions('eightfold')
+      resolved = { mode: 'eightfold', command: { command: 'bundle-list' } }
+    })
+  bundle.command('add <name>').description('install every adaptation in a Treasury bundle')
+    .action((name: string) => {
+      rejectParentOptions('eightfold')
+      if (name.length === 0) program.error('error: eightfold bundle add needs a bundle name')
+      resolved = { mode: 'eightfold', command: { command: 'bundle-add', name } }
     })
   eightfold.command('add <name>').description('install an adaptation from the Treasury registry')
     .action((name: string) => {
