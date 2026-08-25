@@ -1,7 +1,8 @@
 /**
  * Structural validation of the Treasury registry document. The registry maps
- * adaptation ids to descriptors; every field is checked and a malformed shape
- * throws with the offending path.
+ * adaptation ids to descriptors and may define named bundles of adaptation
+ * ids; every field is checked and a malformed shape throws with the offending
+ * path.
  *
  * @module @deepseek-ai/dsh-treasury/registry
  */
@@ -36,6 +37,8 @@ export interface AdaptationDescriptor {
 export interface TreasuryRegistry {
   readonly schemaVersion: number
   readonly adaptations: Readonly<Record<string, AdaptationDescriptor>>
+  /** Named sets of adaptation ids that can be installed together. */
+  readonly bundles: Readonly<Record<string, readonly string[]>>
 }
 
 function parseSource(value: unknown, path: string): AdaptationSource {
@@ -70,6 +73,28 @@ function parseDescriptor(id: string, value: unknown): AdaptationDescriptor {
   }
 }
 
+function parseBundles(value: unknown, adaptations: Readonly<Record<string, AdaptationDescriptor>>): Record<string, readonly string[]> {
+  if (value === undefined) return {}
+  const record = asRecord(value, 'registry.bundles')
+  const bundles: Record<string, readonly string[]> = {}
+  for (const [bundle, raw] of Object.entries(record)) {
+    if (!Array.isArray(raw)) throw new Error(`treasury: registry.bundles.${bundle} must be an array`)
+    const ids = raw.map((item, index) => asString(item, `registry.bundles.${bundle}.${index}`))
+    const seen = new Set<string>()
+    for (const id of ids) {
+      if (adaptations[id] === undefined) {
+        throw new Error(`treasury: registry.bundles.${bundle} references unknown adaptation ${JSON.stringify(id)}`)
+      }
+      if (seen.has(id)) {
+        throw new Error(`treasury: registry.bundles.${bundle} contains duplicate adaptation ${JSON.stringify(id)}`)
+      }
+      seen.add(id)
+    }
+    bundles[bundle] = ids
+  }
+  return bundles
+}
+
 /**
  * Structurally validate a parsed registry document.
  * @param value - the parsed registry JSON, expected to be an object.
@@ -88,7 +113,8 @@ export function parseRegistry(value: unknown): TreasuryRegistry {
   for (const [id, raw] of Object.entries(adaptationsRaw)) {
     adaptations[id] = parseDescriptor(id, raw)
   }
-  return { schemaVersion, adaptations }
+  const bundles = parseBundles(record.bundles, adaptations)
+  return { schemaVersion, adaptations, bundles }
 }
 
 /**
