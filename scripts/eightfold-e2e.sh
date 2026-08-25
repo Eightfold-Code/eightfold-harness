@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prove the Treasury end-to-end loop against the live public registry:
-# list the registry, install hello-eightfold, execute the installed
-# adaptation, and assert the exact expected output.
+# list the registry, install the developer bundle, execute the installed
+# hello-eightfold adaptation, and assert the exact expected output.
 #
 # Requires network access to the public Treasury (and its codeload archive)
 # plus `git` for branch resolution. The local home defaults to .eightfold/
@@ -18,8 +18,8 @@ echo "== dsh eightfold treasury list =="
 node --import tsx/esm apps/cli/src/bin.ts eightfold treasury list
 
 echo
-echo "== dsh eightfold add hello-eightfold =="
-node --import tsx/esm apps/cli/src/bin.ts eightfold add hello-eightfold
+echo "== dsh eightfold add developer =="
+node --import tsx/esm apps/cli/src/bin.ts eightfold add developer
 
 echo
 echo "== execute the installed adaptation with {\"name\":\"Dino\"} =="
