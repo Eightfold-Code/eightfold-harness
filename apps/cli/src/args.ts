@@ -44,8 +44,26 @@ interface PluginInvocation {
   args: string[]
 }
 
+/** One Eightfold Treasury CLI command, resolved from the `eightfold` verb. */
+export type EightfoldCommand =
+  | { readonly command: 'treasury-list' }
+  | { readonly command: 'treasury-search'; readonly query: string }
+  | { readonly command: 'add'; readonly name: string }
+  | { readonly command: 'remove'; readonly name: string }
+  | { readonly command: 'update'; readonly name?: string }
+
+/** Run one Eightfold Treasury command against the local Treasury home. */
+interface EightfoldInvocation {
+  mode: 'eightfold'
+  command: EightfoldCommand
+}
+
 /** The resolved `dsh` invocation. Help, version, and errors exit inside {@link parseDshArgs}. */
-export type DshInvocation = ProfileInvocation | DumpConfigInvocation | PluginInvocation
+export type DshInvocation =
+  | ProfileInvocation
+  | DumpConfigInvocation
+  | PluginInvocation
+  | EightfoldInvocation
 
 /** Launcher flags shared by the default command and the `web` alias. */
 interface BootOptions {
@@ -178,6 +196,40 @@ export function parseDshArgs(argv: readonly string[], version: string): DshInvoc
       if (options.profile === '') program.error('error: --profile needs a name')
       if (args.length === 0) program.error('error: plugin needs pnpm arguments to forward (e.g. add <package>)')
       resolved = { mode: 'plugin', profile: options.profile, args }
+    })
+
+  const eightfold = program.command('eightfold').description('manage Eightfold Treasury adaptations')
+    .helpOption('-h, --help', 'display help for command')
+  const treasury = eightfold.command('treasury').description('inspect the public Treasury registry')
+  treasury.command('list').description('list all adaptations in the registry')
+    .action(() => {
+      rejectParentOptions('eightfold')
+      resolved = { mode: 'eightfold', command: { command: 'treasury-list' } }
+    })
+  treasury.command('search <query>').description('search adaptations by id, name, or description')
+    .action((query: string) => {
+      rejectParentOptions('eightfold')
+      if (query.length === 0) program.error('error: eightfold treasury search needs a query')
+      resolved = { mode: 'eightfold', command: { command: 'treasury-search', query } }
+    })
+  eightfold.command('add <name>').description('install an adaptation from the Treasury registry')
+    .action((name: string) => {
+      rejectParentOptions('eightfold')
+      if (name.length === 0) program.error('error: eightfold add needs an adaptation name')
+      resolved = { mode: 'eightfold', command: { command: 'add', name } }
+    })
+  eightfold.command('remove <name>').description('uninstall an installed adaptation')
+    .action((name: string) => {
+      rejectParentOptions('eightfold')
+      if (name.length === 0) program.error('error: eightfold remove needs an adaptation name')
+      resolved = { mode: 'eightfold', command: { command: 'remove', name } }
+    })
+  eightfold.command('update [name]').description('refresh installed adaptations to their pinned branch head (all when name is omitted)')
+    .action((name?: string) => {
+      rejectParentOptions('eightfold')
+      resolved = name === undefined
+        ? { mode: 'eightfold', command: { command: 'update' } }
+        : { mode: 'eightfold', command: { command: 'update', name } }
     })
 
   try {

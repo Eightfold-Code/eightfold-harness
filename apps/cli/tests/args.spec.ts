@@ -57,6 +57,21 @@ describe('parseDshArgs', () => {
       .toEqual({ mode: 'plugin', profile: 'tui', args: ['add', '--save-dev', 'x'] })
   })
 
+  it('routes the eightfold Treasury commands', () => {
+    expect(parse(['eightfold', 'treasury', 'list']))
+      .toEqual({ mode: 'eightfold', command: { command: 'treasury-list' } })
+    expect(parse(['eightfold', 'treasury', 'search', 'hello']))
+      .toEqual({ mode: 'eightfold', command: { command: 'treasury-search', query: 'hello' } })
+    expect(parse(['eightfold', 'add', 'hello-eightfold']))
+      .toEqual({ mode: 'eightfold', command: { command: 'add', name: 'hello-eightfold' } })
+    expect(parse(['eightfold', 'remove', 'hello-eightfold']))
+      .toEqual({ mode: 'eightfold', command: { command: 'remove', name: 'hello-eightfold' } })
+    expect(parse(['eightfold', 'update']))
+      .toEqual({ mode: 'eightfold', command: { command: 'update', name: undefined } })
+    expect(parse(['eightfold', 'update', 'hello-eightfold']))
+      .toEqual({ mode: 'eightfold', command: { command: 'update', name: 'hello-eightfold' } })
+  })
+
   it('routes profile and web config dumps', () => {
     expect(parse(['--profile', 'web', '--dump-config']))
       .toEqual({ mode: 'dump-config', profile: 'web', defaultOnly: false, patches: [] })
@@ -96,6 +111,8 @@ describe('parseDshArgs', () => {
     expect(exitCode(['plugin', '--profile', 'tui'])).toBe(1) // nothing to forward
     expect(exitCode(['plugin', '--profile', ''])).toBe(1)
     expect(exitCode(['--profile', 'x', 'plugin', 'add', 'y'])).toBe(1)
+    expect(exitCode(['--profile', 'x', 'eightfold', 'add', 'y'])).toBe(1) // parent options rejected
+    expect(exitCode(['eightfold', 'treasury', 'search', ''])).toBe(1)
   })
 
   it('keeps its own help for an invocation with no app to hand it to', () => {
