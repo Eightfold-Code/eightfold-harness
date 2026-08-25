@@ -1,10 +1,12 @@
-# DeepSeek Harness
+# Eightfold Harness
 
 English | [中文](README.zh.md)
 
-DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).
+Eightfold Harness (`dsh`) is a modular agent runtime built around composable capabilities.
 
-It uses an architecture where **everything is a plugin**, and is powered by [Cordis](https://github.com/cordiverse/cordis), whose design is described in [_A Programming Paradigm for Spatiotemporal Composability_](https://github.com/cordiverse/paper).
+It is based on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and retains its plugin-oriented architecture: **everything is a plugin**, powered by [Cordis](https://github.com/cordiverse/cordis).
+
+Eightfold extends the harness with a distribution layer called Treasury, which lets capabilities be discovered and installed on demand.
 
 ## Developer preview
 

@@ -1,6 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-root",
   "version": "0.1.1-rc.2",
+  "description": "Eightfold Harness: a modular agent runtime, forked from DeepSeek Harness, with a Treasury distribution layer for on-demand capability discovery and installation",
   "license": "MIT",
   "private": true,
   "type": "module",
