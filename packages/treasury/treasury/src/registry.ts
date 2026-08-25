@@ -1,8 +1,7 @@
 /**
  * Structural validation of the Treasury registry document. The registry maps
- * adaptation ids to descriptors and may define named bundles of adaptation
- * ids; every field is checked and a malformed shape throws with the offending
- * path.
+ * adaptation ids to descriptors and bundle ids to ordered adaptation lists;
+ * every field is checked and a malformed shape throws with the offending path.
  *
  * @module @deepseek-ai/dsh-treasury/registry
  */
@@ -33,12 +32,14 @@ export interface AdaptationDescriptor {
   readonly compatibility: Record<string, string>
 }
 
+/** Ordered adaptation ids that make up one named Treasury bundle. */
+export type BundleDescriptor = readonly string[]
+
 /** The validated Treasury registry document. */
 export interface TreasuryRegistry {
   readonly schemaVersion: number
   readonly adaptations: Readonly<Record<string, AdaptationDescriptor>>
-  /** Named sets of adaptation ids that can be installed together. */
-  readonly bundles: Readonly<Record<string, readonly string[]>>
+  readonly bundles: Readonly<Record<string, BundleDescriptor>>
 }
 
 function parseSource(value: unknown, path: string): AdaptationSource {
@@ -73,24 +74,25 @@ function parseDescriptor(id: string, value: unknown): AdaptationDescriptor {
   }
 }
 
-function parseBundles(value: unknown, adaptations: Readonly<Record<string, AdaptationDescriptor>>): Record<string, readonly string[]> {
+function parseBundles(
+  value: unknown,
+  adaptations: Readonly<Record<string, AdaptationDescriptor>>,
+): Record<string, BundleDescriptor> {
   if (value === undefined) return {}
   const record = asRecord(value, 'registry.bundles')
-  const bundles: Record<string, readonly string[]> = {}
-  for (const [bundle, raw] of Object.entries(record)) {
-    if (!Array.isArray(raw)) throw new Error(`treasury: registry.bundles.${bundle} must be an array`)
-    const ids = raw.map((item, index) => asString(item, `registry.bundles.${bundle}.${index}`))
-    const seen = new Set<string>()
-    for (const id of ids) {
-      if (adaptations[id] === undefined) {
-        throw new Error(`treasury: registry.bundles.${bundle} references unknown adaptation ${JSON.stringify(id)}`)
+  const bundles: Record<string, BundleDescriptor> = {}
+  for (const [id, raw] of Object.entries(record)) {
+    const path = `registry.bundles.${id}`
+    if (!Array.isArray(raw)) throw new Error(`treasury: ${path} must be an array`)
+    const members = raw.map((member, index) => asString(member, `${path}[${index}]`))
+    const unique = new Set(members)
+    if (unique.size !== members.length) throw new Error(`treasury: ${path} must not contain duplicate adaptations`)
+    for (const member of members) {
+      if (adaptations[member] === undefined) {
+        throw new Error(`treasury: ${path} references unknown adaptation ${JSON.stringify(member)}`)
       }
-      if (seen.has(id)) {
-        throw new Error(`treasury: registry.bundles.${bundle} contains duplicate adaptation ${JSON.stringify(id)}`)
-      }
-      seen.add(id)
     }
-    bundles[bundle] = ids
+    bundles[id] = members
   }
   return bundles
 }

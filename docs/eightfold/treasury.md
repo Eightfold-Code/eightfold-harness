@@ -1,91 +1,155 @@
 # Treasury: capability distribution for Eightfold Harness
 
-Treasury is the Eightfold distribution layer. Users discover capabilities and install them on demand. A capability ships as an *adaptation*: a plugin source archive plus a manifest that declares identity, permissions, and compatibility.
+Treasury is the Eightfold distribution layer. Users discover capabilities and
+install them on demand. A capability ships as an *adaptation*: a pinned source
+archive plus an `eightfold.json` manifest. Activatable adaptations additionally
+use the native DeepSeek Harness `dsh.bundle` package format.
 
-Treasury may also publish named *bundles*. A bundle is only a registry-level list of adaptation ids; it does not introduce another plugin format. The Harness expands the bundle and installs each referenced adaptation through the same validated installer path.
+Treasury owns discovery, distribution, pinning, and pre-activation validation.
+Harness/Cordis continues to own runtime plugin composition.
 
-## CLI
+## User flow
 
-Inspect the public registry:
+Inspect Treasury:
 
-```bash
+```sh
 dsh eightfold treasury list
-dsh eightfold treasury search <query>
+dsh eightfold treasury search browser
 ```
 
-Install and manage individual adaptations:
+Install without activating:
 
-```bash
-dsh eightfold add <name>
-dsh eightfold remove <name>
-dsh eightfold update [name]
+```sh
+dsh eightfold add browser
 ```
 
-Inspect and install named bundles:
+Install and activate in an existing or newly initialized Harness profile:
 
-```bash
-dsh eightfold bundle list
-dsh eightfold bundle add <name>
+```sh
+dsh eightfold add browser --profile tui
 ```
 
-For example, if Treasury publishes a `developer` bundle containing `hello-eightfold` and `session-search`, `dsh eightfold bundle add developer` installs each missing adaptation and leaves adaptations that are already present untouched.
+A Treasury bundle is installed through the same command:
+
+```sh
+dsh eightfold add developer --profile tui
+```
 
 ## Install flow
 
-`dsh eightfold add <name>` runs the following pipeline:
-
 ```text
 User
-  -> dsh eightfold add <name>
+  -> dsh eightfold add <adaptation-or-bundle> [--profile <name>]
   -> Eightfold CLI
-  -> Treasury Registry          (name -> adaptation descriptor)
-  -> resolve adaptation
-  -> pinned commit
-  -> download archive           (GitHub tarball/zip at that commit)
-  -> validate manifest
-  -> install dependencies
-  -> register plugin            (profile package.json and bundles list)
-  -> update local profile
+  -> Treasury registry
+  -> expand bundle when needed
+  -> reject incompatible Harness versions
+  -> resolve each adaptation descriptor
+  -> exact commit
+  -> download GitHub commit archive
+  -> validate archive paths + eightfold.json
+  -> atomically extract under Eightfold home
+  -> record installed commit + permissions
+  -> optional: dsh plugin --profile <name> add <local-package-path>
+  -> native profile pnpm dependency + dsh.profile.bundles reconciliation
 ```
 
-`dsh eightfold bundle add <name>` first resolves the named bundle to adaptation ids, then runs the same installation pipeline for each adaptation. Bundle membership is validated when the registry is parsed: unknown and duplicate adaptation ids are rejected.
+The Treasury installer itself never executes downloaded adaptation code. Profile
+activation is a separate step delegated to the existing Harness plugin manager.
 
-Each arrow is a distinct step with its own failure and log point.
+## Registry and pinning
+
+A stable registry entry should contain a full 40-character `source.commit`.
+That commit is the published release: the adaptation branch may move afterward
+without changing what users install.
+
+Branch-only descriptors remain accepted for development registries. In that
+case the installer resolves the branch head with `git ls-remote` and records the
+resulting commit before download.
+
+The public Eightfold Treasury should prefer commit-pinned entries.
 
 ## Transport
 
-Treasury downloads a GitHub archive (tarball or zip) for a specific branch or commit. Normal users never trigger a full clone. Pinning a commit keeps the installed artifact reproducible; the download URL names the commit explicitly.
+Treasury downloads a GitHub codeload archive for the resolved commit. Normal
+users do not clone the full Treasury repository or its other adaptation
+branches.
 
-## Security requirements
+Before any archive entry is written, the installer validates its path and plans
+the extraction. The validated tree is written to a temporary destination and
+renamed into place only after extraction succeeds.
 
-Treasury treats a downloaded adaptation as untrusted. It enforces the following requirements:
+## Native Harness activation
 
-- Validate the manifest before writing any file.
-- Validate requested permissions against the manifest.
-- Validate compatibility with the running Eightfold version.
-- Pin a commit; reject unpinned sources.
-- Reject malformed archive paths.
-- Prevent path traversal outside the extraction directory.
-- No arbitrary pre-install shell scripts without explicit approval.
-- No execution of downloaded code during download.
-- Installation and activation are separate operations.
+DeepSeek Harness already has an out-of-tree bundle/profile mechanism. Eightfold
+reuses it rather than creating a second plugin loader.
 
-## Local storage (provisional)
+An activatable Treasury package declares a native bundle in `package.json`:
 
-The tentative layout under `~/.eightfold`:
-
-```text
-~/.eightfold/
-  config.json        Treasury configuration
-  adaptations/       downloaded, validated capability sources
-  cache/             archives and resolved descriptors
-  profiles/          local profile state
+```json
+{
+  "name": "eightfold-browser",
+  "type": "module",
+  "main": "index.js",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
 ```
 
-The layout is provisional and may change as the installer evolves.
+Its patch inserts the ordinary Cordis plugin rows:
 
-## Adapting DeepSeek Harness plugin resolution
+```yaml
+- insert:
+    - id: eightfold-browser
+      name: eightfold-browser
+```
 
-DeepSeek Harness loads out-of-tree plugins through the profile mechanism described in [architecture.md](../architecture.md). A profile directory under the Harness home holds a `package.json` (out-of-tree plugin dependencies plus the `dsh.profile` manifest's ordered `bundles` list) and a `cordis.patch.yml` user patch layer. The `dsh plugin --profile <name> add <package>` command forwards to pnpm in the profile directory ([plugin.ts](../../apps/cli/src/plugin.ts)). Bundle names resolve two-anchored — the dsh installation first, then the profile directory — and bare plugin names resolve through the profile directory's Node parent-walk to the maintained flat fallback `$DSH_HOME/profiles/node_modules` ([profile.ts](../../packages/boot/app-boot/src/profile.ts)).
+After Treasury has downloaded the package, `--profile` hands its absolute local
+path to the existing `dsh plugin` implementation. That implementation owns
+profile initialization, pnpm installation/linking, package resolution, and the
+`dsh.profile.bundles` list.
 
-The Eightfold installer must adapt this mechanism rather than invent a conflicting one. It downloads and validates a capability archive, installs the resulting plugin into the profile's `package.json` and `node_modules`, and updates `dsh.profile.bundles`, so resolution continues through the existing loader.
+## Local storage
+
+The current prototype defaults to `.eightfold/` under the invoking directory.
+`EIGHTFOLD_HOME` overrides it.
+
+```text
+.eightfold/
+├── installed.json
+└── adaptations/
+    ├── browser/
+    └── ...
+```
+
+Harness profiles remain under the ordinary Harness home (`$DSH_HOME/profiles`)
+and are not duplicated under the Eightfold home.
+
+## Current security properties
+
+Implemented today:
+
+- registry and manifest structural validation;
+- commit pin support, with branch resolution recorded to a commit when needed;
+- Harness version compatibility gating before install and update;
+- archive path validation before writes;
+- path-traversal containment checks;
+- atomic replacement of an installed adaptation directory;
+- manifest id must match the requested adaptation id;
+- requested permissions are recorded in installed state;
+- no adaptation code is executed during Treasury download/extraction;
+- activation reuses the existing Harness profile/plugin mechanism.
+
+Still to harden:
+
+- enforce registry descriptor ↔ downloaded manifest agreement for version,
+  entry, and compatibility;
+- define user approval UX for requested permissions before activation;
+- track profile activations so remove/update can safely reconcile every profile;
+- transactional rollback when only part of a multi-adaptation bundle succeeds.
+
+See [registry-integrity.md](registry-integrity.md), [lifecycle.md](lifecycle.md),
+and [roadmap.md](roadmap.md) for those follow-ups.

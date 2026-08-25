@@ -7,17 +7,23 @@
  * @module @deepseek-ai/dsh/eightfold
  */
 
+import { resolve } from 'node:path'
 import {
+  ADAPTATION_COMPATIBILITY_KEY,
   fetchRegistry,
   installAdaptation,
+  isCompatible,
   parseRegistry,
   readInstalledState,
   removeAdaptation,
   resolveCommit,
   resolveEightfoldHome,
   resolveRegistryUrl,
+  type AdaptationDescriptor,
+  type TreasuryRegistry,
 } from '@deepseek-ai/dsh-treasury'
 import type { EightfoldCommand } from './args.ts'
+import { runPlugin } from './plugin.ts'
 
 const NAME = 'eightfold'
 
@@ -42,8 +48,21 @@ function printAdaptation(id: string, version: string, name: string, description:
   process.stdout.write(`  ${description}\n`)
 }
 
+/** Print one bundle row. */
+function printBundle(id: string, members: readonly string[]): void {
+  process.stdout.write(`${id}  bundle  ${members.length} adaptation(s)\n`)
+  process.stdout.write(`  ${members.join(', ')}\n`)
+}
+
+/** Reject an adaptation that excludes the running Harness version. */
+function assertCompatible(name: string, descriptor: AdaptationDescriptor, harnessVersion: string): void {
+  if (isCompatible(descriptor, harnessVersion)) return
+  const requirement = descriptor.compatibility[ADAPTATION_COMPATIBILITY_KEY] ?? 'an unknown version'
+  throw new Error(`${name} requires Eightfold Harness ${requirement}; current version is ${harnessVersion}`)
+}
+
 /** Fetch and validate the live Treasury registry. */
-async function fetchLiveRegistry() {
+async function fetchLiveRegistry(): Promise<TreasuryRegistry> {
   return parseRegistry(await fetchRegistry())
 }
 
@@ -55,6 +74,13 @@ async function runTreasuryList(): Promise<number> {
     const descriptor = registry.adaptations[id]
     if (descriptor === undefined) continue
     printAdaptation(id, descriptor.version, descriptor.name, descriptor.description)
+  }
+  const bundleIds = Object.keys(registry.bundles).sort()
+  if (bundleIds.length > 0) process.stdout.write('Bundles\n')
+  for (const id of bundleIds) {
+    const members = registry.bundles[id]
+    if (members === undefined) continue
+    printBundle(id, members)
   }
   return 0
 }
@@ -68,33 +94,44 @@ async function runTreasurySearch(query: string): Promise<number> {
       || descriptor.name.toLowerCase().includes(needle)
       || descriptor.description.toLowerCase().includes(needle))
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-  if (matches.length === 0) {
-    process.stdout.write(`no adaptations match ${JSON.stringify(query)}\n`)
+  const bundleMatches = Object.entries(registry.bundles)
+    .filter(([id, members]) =>
+      id.toLowerCase().includes(needle)
+      || members.some(member => member.toLowerCase().includes(needle)))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  if (matches.length === 0 && bundleMatches.length === 0) {
+    process.stdout.write(`no adaptations or bundles match ${JSON.stringify(query)}\n`)
     return 0
   }
-  process.stdout.write(`${matches.length} adaptation(s) match ${JSON.stringify(query)}\n`)
-  for (const [id, descriptor] of matches) {
-    printAdaptation(id, descriptor.version, descriptor.name, descriptor.description)
+  if (matches.length > 0) {
+    process.stdout.write(`${matches.length} adaptation(s) match ${JSON.stringify(query)}\n`)
+    for (const [id, descriptor] of matches) {
+      printAdaptation(id, descriptor.version, descriptor.name, descriptor.description)
+    }
+  }
+  if (bundleMatches.length > 0) {
+    process.stdout.write(`${bundleMatches.length} bundle(s) match ${JSON.stringify(query)}\n`)
+    for (const [id, members] of bundleMatches) printBundle(id, members)
   }
   return 0
 }
 
-async function installOne(name: string, home: string, announceExisting = true): Promise<'installed' | 'existing'> {
-  const registry = await fetchLiveRegistry()
+async function installOne(
+  registry: TreasuryRegistry,
+  name: string,
+  home: string,
+  harnessVersion: string,
+): Promise<'installed' | 'present'> {
   const descriptor = registry.adaptations[name]
   if (descriptor === undefined) {
     throw new Error(`unknown adaptation ${JSON.stringify(name)} in the Treasury registry`)
   }
+  assertCompatible(name, descriptor, harnessVersion)
   const state = await readInstalledState(home)
   const existing = state.adaptations[name]
   if (existing !== undefined) {
-    if (announceExisting) {
-      process.stdout.write(
-        `${NAME}: ${name} is already installed at ${shortCommit(existing.source.commit)}; run `
-        + `dsh eightfold update ${name} to refresh it\n`,
-      )
-    }
-    return 'existing'
+    process.stdout.write(`${name}: already installed at ${shortCommit(existing.source.commit)}\n`)
+    return 'present'
   }
   const record = await installAdaptation(home, name, descriptor)
   process.stdout.write(
@@ -108,54 +145,44 @@ async function installOne(name: string, home: string, announceExisting = true): 
   return 'installed'
 }
 
-async function runAdd(name: string, home: string): Promise<number> {
-  try {
-    await installOne(name, home)
-    return 0
-  } catch (error) {
-    process.stderr.write(`${NAME}: ${messageOf(error)}\n`)
-    return 1
+/** Link an installed Treasury adaptation into a native Harness profile. */
+function activateInProfile(home: string, name: string, profile: string): void {
+  const packagePath = resolve(home, 'adaptations', name)
+  const status = runPlugin(profile, ['add', packagePath])
+  if (status !== 0) {
+    throw new Error(`failed to activate ${name} in profile ${profile} (dsh plugin exited ${status})`)
   }
+  process.stdout.write(`Activated ${name} in profile ${profile}\n`)
 }
 
-async function runBundleList(): Promise<number> {
+async function runAdd(
+  name: string,
+  home: string,
+  harnessVersion: string,
+  profile?: string,
+): Promise<number> {
   const registry = await fetchLiveRegistry()
-  const entries = Object.entries(registry.bundles).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-  if (entries.length === 0) {
-    process.stdout.write('no Treasury bundles published\n')
+  if (registry.adaptations[name] !== undefined) {
+    await installOne(registry, name, home, harnessVersion)
+    if (profile !== undefined) activateInProfile(home, name, profile)
     return 0
   }
-  for (const [name, adaptations] of entries) {
-    process.stdout.write(`${name}\n`)
-    for (const id of adaptations) process.stdout.write(`  ${id}\n`)
-  }
-  return 0
-}
 
-async function runBundleAdd(name: string, home: string): Promise<number> {
-  const registry = await fetchLiveRegistry()
-  const adaptations = registry.bundles[name]
-  if (adaptations === undefined) {
-    process.stderr.write(`${NAME}: unknown bundle ${JSON.stringify(name)} in the Treasury registry\n`)
+  const members = registry.bundles[name]
+  if (members === undefined) {
+    process.stderr.write(`${NAME}: unknown adaptation or bundle ${JSON.stringify(name)} in the Treasury registry\n`)
     return 1
   }
-  process.stdout.write(`Installing bundle ${name} (${adaptations.length} adaptation(s))\n`)
+  process.stdout.write(`Installing bundle ${name} (${members.length} adaptation(s))\n`)
   let installed = 0
-  let existing = 0
-  for (const id of adaptations) {
-    try {
-      const result = await installOne(id, home, false)
-      if (result === 'installed') installed += 1
-      else {
-        existing += 1
-        process.stdout.write(`${id}: already installed\n`)
-      }
-    } catch (error) {
-      process.stderr.write(`${NAME}: bundle ${name}: ${messageOf(error)}\n`)
-      return 1
-    }
+  let present = 0
+  for (const member of members) {
+    const outcome = await installOne(registry, member, home, harnessVersion)
+    if (outcome === 'installed') installed += 1
+    else present += 1
+    if (profile !== undefined) activateInProfile(home, member, profile)
   }
-  process.stdout.write(`Bundle ${name} ready: ${installed} installed, ${existing} already present\n`)
+  process.stdout.write(`Bundle ${name} ready: ${installed} installed, ${present} already present\n`)
   return 0
 }
 
@@ -169,7 +196,7 @@ async function runRemove(name: string, home: string): Promise<number> {
   return 0
 }
 
-async function runUpdate(name: string | undefined, home: string): Promise<number> {
+async function runUpdate(name: string | undefined, home: string, harnessVersion: string): Promise<number> {
   const state = await readInstalledState(home)
   const ids = name === undefined
     ? Object.keys(state.adaptations).sort()
@@ -190,6 +217,7 @@ async function runUpdate(name: string | undefined, home: string): Promise<number
       if (descriptor === undefined) {
         throw new Error(`${id} is no longer in the Treasury registry`)
       }
+      assertCompatible(id, descriptor, harnessVersion)
       const latest = await resolveCommit(descriptor)
       if (latest === installed.source.commit) {
         process.stdout.write(`${id}: up to date at ${shortCommit(latest)}\n`)
@@ -210,9 +238,10 @@ async function runUpdate(name: string | undefined, home: string): Promise<number
 /**
  * Run one Eightfold command to completion, printing to stdout/stderr.
  * @param command - the resolved command.
+ * @param harnessVersion - version of the running Eightfold Harness CLI.
  * @returns the process exit code.
  */
-export async function runEightfold(command: EightfoldCommand): Promise<number> {
+export async function runEightfold(command: EightfoldCommand, harnessVersion: string): Promise<number> {
   const home = resolveEightfoldHome()
   try {
     switch (command.command) {
@@ -220,16 +249,12 @@ export async function runEightfold(command: EightfoldCommand): Promise<number> {
         return await runTreasuryList()
       case 'treasury-search':
         return await runTreasurySearch(command.query)
-      case 'bundle-list':
-        return await runBundleList()
-      case 'bundle-add':
-        return await runBundleAdd(command.name, home)
       case 'add':
-        return await runAdd(command.name, home)
+        return await runAdd(command.name, home, harnessVersion, command.profile)
       case 'remove':
         return await runRemove(command.name, home)
       case 'update':
-        return await runUpdate(command.name, home)
+        return await runUpdate(command.name, home, harnessVersion)
       /* v8 ignore next -- the union is closed; a new member updates the switch */
       default:
         return assertNever(command)
