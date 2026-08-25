@@ -22,6 +22,7 @@ export {
   parseRegistry,
   type AdaptationDescriptor,
   type AdaptationSource,
+  type BundleDescriptor,
   type TreasuryRegistry,
 } from './registry.ts'
 export {
