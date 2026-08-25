@@ -79,21 +79,22 @@ async function runTreasurySearch(query: string): Promise<number> {
   return 0
 }
 
-async function runAdd(name: string, home: string): Promise<number> {
+async function installOne(name: string, home: string, announceExisting = true): Promise<'installed' | 'existing'> {
   const registry = await fetchLiveRegistry()
   const descriptor = registry.adaptations[name]
   if (descriptor === undefined) {
-    process.stderr.write(`${NAME}: unknown adaptation ${JSON.stringify(name)} in the Treasury registry\n`)
-    return 1
+    throw new Error(`unknown adaptation ${JSON.stringify(name)} in the Treasury registry`)
   }
   const state = await readInstalledState(home)
   const existing = state.adaptations[name]
   if (existing !== undefined) {
-    process.stdout.write(
-      `${NAME}: ${name} is already installed at ${shortCommit(existing.source.commit)}; run `
-      + `dsh eightfold update ${name} to refresh it\n`,
-    )
-    return 0
+    if (announceExisting) {
+      process.stdout.write(
+        `${NAME}: ${name} is already installed at ${shortCommit(existing.source.commit)}; run `
+        + `dsh eightfold update ${name} to refresh it\n`,
+      )
+    }
+    return 'existing'
   }
   const record = await installAdaptation(home, name, descriptor)
   process.stdout.write(
@@ -104,6 +105,57 @@ async function runAdd(name: string, home: string): Promise<number> {
   process.stdout.write(
     `Registered permissions: ${record.permissions.length === 0 ? 'none' : record.permissions.join(', ')}\n`,
   )
+  return 'installed'
+}
+
+async function runAdd(name: string, home: string): Promise<number> {
+  try {
+    await installOne(name, home)
+    return 0
+  } catch (error) {
+    process.stderr.write(`${NAME}: ${messageOf(error)}\n`)
+    return 1
+  }
+}
+
+async function runBundleList(): Promise<number> {
+  const registry = await fetchLiveRegistry()
+  const entries = Object.entries(registry.bundles).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  if (entries.length === 0) {
+    process.stdout.write('no Treasury bundles published\n')
+    return 0
+  }
+  for (const [name, adaptations] of entries) {
+    process.stdout.write(`${name}\n`)
+    for (const id of adaptations) process.stdout.write(`  ${id}\n`)
+  }
+  return 0
+}
+
+async function runBundleAdd(name: string, home: string): Promise<number> {
+  const registry = await fetchLiveRegistry()
+  const adaptations = registry.bundles[name]
+  if (adaptations === undefined) {
+    process.stderr.write(`${NAME}: unknown bundle ${JSON.stringify(name)} in the Treasury registry\n`)
+    return 1
+  }
+  process.stdout.write(`Installing bundle ${name} (${adaptations.length} adaptation(s))\n`)
+  let installed = 0
+  let existing = 0
+  for (const id of adaptations) {
+    try {
+      const result = await installOne(id, home, false)
+      if (result === 'installed') installed += 1
+      else {
+        existing += 1
+        process.stdout.write(`${id}: already installed\n`)
+      }
+    } catch (error) {
+      process.stderr.write(`${NAME}: bundle ${name}: ${messageOf(error)}\n`)
+      return 1
+    }
+  }
+  process.stdout.write(`Bundle ${name} ready: ${installed} installed, ${existing} already present\n`)
   return 0
 }
 
@@ -168,6 +220,10 @@ export async function runEightfold(command: EightfoldCommand): Promise<number> {
         return await runTreasuryList()
       case 'treasury-search':
         return await runTreasurySearch(command.query)
+      case 'bundle-list':
+        return await runBundleList()
+      case 'bundle-add':
+        return await runBundleAdd(command.name, home)
       case 'add':
         return await runAdd(command.name, home)
       case 'remove':
