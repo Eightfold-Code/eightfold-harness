@@ -25,6 +25,36 @@ describe('parseRegistry', () => {
     expect(registry.schemaVersion).toBe(REGISTRY_SCHEMA_VERSION)
     expect(Object.keys(registry.adaptations)).toEqual(['hello-eightfold'])
     expect(registry.adaptations['hello-eightfold']?.source.branch).toBe('adaptation/hello-eightfold')
+    expect(registry.bundles).toEqual({})
+  })
+
+  it('parses named bundles', () => {
+    const registry = parseRegistry({
+      ...registryFixture,
+      bundles: { developer: ['hello-eightfold'] },
+    })
+    expect(registry.bundles.developer).toEqual(['hello-eightfold'])
+  })
+
+  it('rejects bundles that reference unknown adaptations', () => {
+    expect(() => parseRegistry({
+      ...registryFixture,
+      bundles: { developer: ['missing'] },
+    })).toThrow('references unknown adaptation "missing"')
+  })
+
+  it('rejects duplicate bundle members', () => {
+    expect(() => parseRegistry({
+      ...registryFixture,
+      bundles: { developer: ['hello-eightfold', 'hello-eightfold'] },
+    })).toThrow('contains duplicate adaptation "hello-eightfold"')
+  })
+
+  it('rejects malformed bundle definitions', () => {
+    expect(() => parseRegistry({
+      ...registryFixture,
+      bundles: { developer: 'hello-eightfold' },
+    })).toThrow('registry.bundles.developer must be an array')
   })
 
   it('accepts an explicit commit pin', () => {
