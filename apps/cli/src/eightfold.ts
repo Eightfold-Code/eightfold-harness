@@ -7,6 +7,7 @@
  * @module @deepseek-ai/dsh/eightfold
  */
 
+import { resolve } from 'node:path'
 import {
   fetchRegistry,
   installAdaptation,
@@ -19,6 +20,7 @@ import {
   type TreasuryRegistry,
 } from '@deepseek-ai/dsh-treasury'
 import type { EightfoldCommand } from './args.ts'
+import { runPlugin } from './plugin.ts'
 
 const NAME = 'eightfold'
 
@@ -129,19 +131,21 @@ async function installOne(
   return 'installed'
 }
 
-async function runAdd(name: string, home: string): Promise<number> {
+/** Link an installed Treasury adaptation into a native Harness profile. */
+function activateInProfile(home: string, name: string, profile: string): void {
+  const packagePath = resolve(home, 'adaptations', name)
+  const status = runPlugin(profile, ['add', packagePath])
+  if (status !== 0) {
+    throw new Error(`failed to activate ${name} in profile ${profile} (dsh plugin exited ${status})`)
+  }
+  process.stdout.write(`Activated ${name} in profile ${profile}\n`)
+}
+
+async function runAdd(name: string, home: string, profile?: string): Promise<number> {
   const registry = await fetchLiveRegistry()
   if (registry.adaptations[name] !== undefined) {
-    const state = await readInstalledState(home)
-    const existing = state.adaptations[name]
-    if (existing !== undefined) {
-      process.stdout.write(
-        `${NAME}: ${name} is already installed at ${shortCommit(existing.source.commit)}; run `
-        + `dsh eightfold update ${name} to refresh it\n`,
-      )
-      return 0
-    }
     await installOne(registry, name, home)
+    if (profile !== undefined) activateInProfile(home, name, profile)
     return 0
   }
 
@@ -157,6 +161,7 @@ async function runAdd(name: string, home: string): Promise<number> {
     const outcome = await installOne(registry, member, home)
     if (outcome === 'installed') installed += 1
     else present += 1
+    if (profile !== undefined) activateInProfile(home, member, profile)
   }
   process.stdout.write(`Bundle ${name} ready: ${installed} installed, ${present} already present\n`)
   return 0
@@ -224,7 +229,7 @@ export async function runEightfold(command: EightfoldCommand): Promise<number> {
       case 'treasury-search':
         return await runTreasurySearch(command.query)
       case 'add':
-        return await runAdd(command.name, home)
+        return await runAdd(command.name, home, command.profile)
       case 'remove':
         return await runRemove(command.name, home)
       case 'update':
