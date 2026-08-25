@@ -12,9 +12,10 @@
 - [x] Publish a real `hello-eightfold` adaptation.
 - [x] Add named Treasury bundle parsing and installation.
 - [x] Reuse native `dsh.bundle` / profile activation via `--profile`.
+- [x] Reject adaptations that exclude the running Harness version.
+- [x] Add a second non-demo adaptation (`session-search`) to prove a useful configuration bundle.
 - [ ] Track profile activations for safe remove/update lifecycle.
 - [ ] Enforce registry descriptor ↔ downloaded manifest version/entry/compatibility agreement.
-- [ ] Add a second non-demo adaptation to prove the format with a useful capability.
 
 ## v0.2 — Treasury UX
 
