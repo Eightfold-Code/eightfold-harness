@@ -16,6 +16,7 @@ import {
   resolveCommit,
   resolveEightfoldHome,
   resolveRegistryUrl,
+  type TreasuryRegistry,
 } from '@deepseek-ai/dsh-treasury'
 import type { EightfoldCommand } from './args.ts'
 
@@ -42,8 +43,14 @@ function printAdaptation(id: string, version: string, name: string, description:
   process.stdout.write(`  ${description}\n`)
 }
 
+/** Print one bundle row. */
+function printBundle(id: string, members: readonly string[]): void {
+  process.stdout.write(`${id}  bundle  ${members.length} adaptation(s)\n`)
+  process.stdout.write(`  ${members.join(', ')}\n`)
+}
+
 /** Fetch and validate the live Treasury registry. */
-async function fetchLiveRegistry() {
+async function fetchLiveRegistry(): Promise<TreasuryRegistry> {
   return parseRegistry(await fetchRegistry())
 }
 
@@ -55,6 +62,13 @@ async function runTreasuryList(): Promise<number> {
     const descriptor = registry.adaptations[id]
     if (descriptor === undefined) continue
     printAdaptation(id, descriptor.version, descriptor.name, descriptor.description)
+  }
+  const bundleIds = Object.keys(registry.bundles).sort()
+  if (bundleIds.length > 0) process.stdout.write('Bundles\n')
+  for (const id of bundleIds) {
+    const members = registry.bundles[id]
+    if (members === undefined) continue
+    printBundle(id, members)
   }
   return 0
 }
@@ -68,32 +82,40 @@ async function runTreasurySearch(query: string): Promise<number> {
       || descriptor.name.toLowerCase().includes(needle)
       || descriptor.description.toLowerCase().includes(needle))
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-  if (matches.length === 0) {
-    process.stdout.write(`no adaptations match ${JSON.stringify(query)}\n`)
+  const bundleMatches = Object.entries(registry.bundles)
+    .filter(([id, members]) =>
+      id.toLowerCase().includes(needle)
+      || members.some(member => member.toLowerCase().includes(needle)))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  if (matches.length === 0 && bundleMatches.length === 0) {
+    process.stdout.write(`no adaptations or bundles match ${JSON.stringify(query)}\n`)
     return 0
   }
-  process.stdout.write(`${matches.length} adaptation(s) match ${JSON.stringify(query)}\n`)
-  for (const [id, descriptor] of matches) {
-    printAdaptation(id, descriptor.version, descriptor.name, descriptor.description)
+  if (matches.length > 0) {
+    process.stdout.write(`${matches.length} adaptation(s) match ${JSON.stringify(query)}\n`)
+    for (const [id, descriptor] of matches) {
+      printAdaptation(id, descriptor.version, descriptor.name, descriptor.description)
+    }
+  }
+  if (bundleMatches.length > 0) {
+    process.stdout.write(`${bundleMatches.length} bundle(s) match ${JSON.stringify(query)}\n`)
+    for (const [id, members] of bundleMatches) printBundle(id, members)
   }
   return 0
 }
 
-async function runAdd(name: string, home: string): Promise<number> {
-  const registry = await fetchLiveRegistry()
+async function installOne(
+  registry: TreasuryRegistry,
+  name: string,
+  home: string,
+): Promise<'installed' | 'present'> {
   const descriptor = registry.adaptations[name]
-  if (descriptor === undefined) {
-    process.stderr.write(`${NAME}: unknown adaptation ${JSON.stringify(name)} in the Treasury registry\n`)
-    return 1
-  }
+  if (descriptor === undefined) throw new Error(`unknown adaptation ${JSON.stringify(name)} in the Treasury registry`)
   const state = await readInstalledState(home)
   const existing = state.adaptations[name]
   if (existing !== undefined) {
-    process.stdout.write(
-      `${NAME}: ${name} is already installed at ${shortCommit(existing.source.commit)}; run `
-      + `dsh eightfold update ${name} to refresh it\n`,
-    )
-    return 0
+    process.stdout.write(`${name}: already installed at ${shortCommit(existing.source.commit)}\n`)
+    return 'present'
   }
   const record = await installAdaptation(home, name, descriptor)
   process.stdout.write(
@@ -104,6 +126,39 @@ async function runAdd(name: string, home: string): Promise<number> {
   process.stdout.write(
     `Registered permissions: ${record.permissions.length === 0 ? 'none' : record.permissions.join(', ')}\n`,
   )
+  return 'installed'
+}
+
+async function runAdd(name: string, home: string): Promise<number> {
+  const registry = await fetchLiveRegistry()
+  if (registry.adaptations[name] !== undefined) {
+    const state = await readInstalledState(home)
+    const existing = state.adaptations[name]
+    if (existing !== undefined) {
+      process.stdout.write(
+        `${NAME}: ${name} is already installed at ${shortCommit(existing.source.commit)}; run `
+        + `dsh eightfold update ${name} to refresh it\n`,
+      )
+      return 0
+    }
+    await installOne(registry, name, home)
+    return 0
+  }
+
+  const members = registry.bundles[name]
+  if (members === undefined) {
+    process.stderr.write(`${NAME}: unknown adaptation or bundle ${JSON.stringify(name)} in the Treasury registry\n`)
+    return 1
+  }
+  process.stdout.write(`Installing bundle ${name} (${members.length} adaptation(s))\n`)
+  let installed = 0
+  let present = 0
+  for (const member of members) {
+    const outcome = await installOne(registry, member, home)
+    if (outcome === 'installed') installed += 1
+    else present += 1
+  }
+  process.stdout.write(`Bundle ${name} ready: ${installed} installed, ${present} already present\n`)
   return 0
 }
 
