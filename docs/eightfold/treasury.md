@@ -43,6 +43,7 @@ User
   -> Eightfold CLI
   -> Treasury registry
   -> expand bundle when needed
+  -> reject incompatible Harness versions
   -> resolve each adaptation descriptor
   -> exact commit
   -> download GitHub commit archive
@@ -133,6 +134,7 @@ Implemented today:
 
 - registry and manifest structural validation;
 - commit pin support, with branch resolution recorded to a commit when needed;
+- Harness version compatibility gating before install and update;
 - archive path validation before writes;
 - path-traversal containment checks;
 - atomic replacement of an installed adaptation directory;
@@ -145,7 +147,6 @@ Still to harden:
 
 - enforce registry descriptor ↔ downloaded manifest agreement for version,
   entry, and compatibility;
-- evaluate compatibility against the running Harness version before install;
 - define user approval UX for requested permissions before activation;
 - track profile activations so remove/update can safely reconcile every profile;
 - transactional rollback when only part of a multi-adaptation bundle succeeds.
