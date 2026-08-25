@@ -24,3 +24,9 @@ export {
   type AdaptationSource,
   type TreasuryRegistry,
 } from './registry.ts'
+export {
+  MANIFEST_COMPATIBILITY_KEY,
+  MANIFEST_SCHEMA_VERSION,
+  parseManifest,
+  type EightfoldManifest,
+} from './manifest.ts'
