@@ -64,6 +64,10 @@ describe('parseDshArgs', () => {
       .toEqual({ mode: 'eightfold', command: { command: 'treasury-search', query: 'hello' } })
     expect(parse(['eightfold', 'add', 'hello-eightfold']))
       .toEqual({ mode: 'eightfold', command: { command: 'add', name: 'hello-eightfold' } })
+    expect(parse(['eightfold', 'add', 'hello-eightfold', '--profile', 'tui']))
+      .toEqual({ mode: 'eightfold', command: { command: 'add', name: 'hello-eightfold', profile: 'tui' } })
+    expect(parse(['eightfold', 'add', 'developer', '--profile', 'web']))
+      .toEqual({ mode: 'eightfold', command: { command: 'add', name: 'developer', profile: 'web' } })
     expect(parse(['eightfold', 'remove', 'hello-eightfold']))
       .toEqual({ mode: 'eightfold', command: { command: 'remove', name: 'hello-eightfold' } })
     expect(parse(['eightfold', 'update']))
@@ -112,6 +116,7 @@ describe('parseDshArgs', () => {
     expect(exitCode(['plugin', '--profile', ''])).toBe(1)
     expect(exitCode(['--profile', 'x', 'plugin', 'add', 'y'])).toBe(1)
     expect(exitCode(['--profile', 'x', 'eightfold', 'add', 'y'])).toBe(1) // parent options rejected
+    expect(exitCode(['eightfold', 'add', 'y', '--profile', ''])).toBe(1)
     expect(exitCode(['eightfold', 'treasury', 'search', ''])).toBe(1)
   })
 
