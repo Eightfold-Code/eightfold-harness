@@ -24,7 +24,8 @@ function readVersion(): string {
   return typeof manifest.version === 'string' ? manifest.version : '0.0.0'
 }
 
-const invocation = parseDshArgs(process.argv.slice(2), readVersion())
+const version = readVersion()
+const invocation = parseDshArgs(process.argv.slice(2), version)
 
 switch (invocation.mode) {
   case 'profile': {
@@ -44,7 +45,7 @@ switch (invocation.mode) {
   }
   case 'eightfold': {
     const { runEightfold } = await import('./eightfold.ts')
-    process.exitCode = await runEightfold(invocation.command)
+    process.exitCode = await runEightfold(invocation.command, version)
     break
   }
   case 'dump-config': {
