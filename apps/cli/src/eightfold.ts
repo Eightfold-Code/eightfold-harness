@@ -9,14 +9,17 @@
 
 import { resolve } from 'node:path'
 import {
+  ADAPTATION_COMPATIBILITY_KEY,
   fetchRegistry,
   installAdaptation,
+  isCompatible,
   parseRegistry,
   readInstalledState,
   removeAdaptation,
   resolveCommit,
   resolveEightfoldHome,
   resolveRegistryUrl,
+  type AdaptationDescriptor,
   type TreasuryRegistry,
 } from '@deepseek-ai/dsh-treasury'
 import type { EightfoldCommand } from './args.ts'
@@ -49,6 +52,13 @@ function printAdaptation(id: string, version: string, name: string, description:
 function printBundle(id: string, members: readonly string[]): void {
   process.stdout.write(`${id}  bundle  ${members.length} adaptation(s)\n`)
   process.stdout.write(`  ${members.join(', ')}\n`)
+}
+
+/** Reject an adaptation that excludes the running Harness version. */
+function assertCompatible(name: string, descriptor: AdaptationDescriptor, harnessVersion: string): void {
+  if (isCompatible(descriptor, harnessVersion)) return
+  const requirement = descriptor.compatibility[ADAPTATION_COMPATIBILITY_KEY] ?? 'an unknown version'
+  throw new Error(`${name} requires Eightfold Harness ${requirement}; current version is ${harnessVersion}`)
 }
 
 /** Fetch and validate the live Treasury registry. */
@@ -110,9 +120,13 @@ async function installOne(
   registry: TreasuryRegistry,
   name: string,
   home: string,
+  harnessVersion: string,
 ): Promise<'installed' | 'present'> {
   const descriptor = registry.adaptations[name]
-  if (descriptor === undefined) throw new Error(`unknown adaptation ${JSON.stringify(name)} in the Treasury registry`)
+  if (descriptor === undefined) {
+    throw new Error(`unknown adaptation ${JSON.stringify(name)} in the Treasury registry`)
+  }
+  assertCompatible(name, descriptor, harnessVersion)
   const state = await readInstalledState(home)
   const existing = state.adaptations[name]
   if (existing !== undefined) {
@@ -141,10 +155,15 @@ function activateInProfile(home: string, name: string, profile: string): void {
   process.stdout.write(`Activated ${name} in profile ${profile}\n`)
 }
 
-async function runAdd(name: string, home: string, profile?: string): Promise<number> {
+async function runAdd(
+  name: string,
+  home: string,
+  harnessVersion: string,
+  profile?: string,
+): Promise<number> {
   const registry = await fetchLiveRegistry()
   if (registry.adaptations[name] !== undefined) {
-    await installOne(registry, name, home)
+    await installOne(registry, name, home, harnessVersion)
     if (profile !== undefined) activateInProfile(home, name, profile)
     return 0
   }
@@ -158,7 +177,7 @@ async function runAdd(name: string, home: string, profile?: string): Promise<num
   let installed = 0
   let present = 0
   for (const member of members) {
-    const outcome = await installOne(registry, member, home)
+    const outcome = await installOne(registry, member, home, harnessVersion)
     if (outcome === 'installed') installed += 1
     else present += 1
     if (profile !== undefined) activateInProfile(home, member, profile)
@@ -177,7 +196,7 @@ async function runRemove(name: string, home: string): Promise<number> {
   return 0
 }
 
-async function runUpdate(name: string | undefined, home: string): Promise<number> {
+async function runUpdate(name: string | undefined, home: string, harnessVersion: string): Promise<number> {
   const state = await readInstalledState(home)
   const ids = name === undefined
     ? Object.keys(state.adaptations).sort()
@@ -198,6 +217,7 @@ async function runUpdate(name: string | undefined, home: string): Promise<number
       if (descriptor === undefined) {
         throw new Error(`${id} is no longer in the Treasury registry`)
       }
+      assertCompatible(id, descriptor, harnessVersion)
       const latest = await resolveCommit(descriptor)
       if (latest === installed.source.commit) {
         process.stdout.write(`${id}: up to date at ${shortCommit(latest)}\n`)
@@ -218,9 +238,10 @@ async function runUpdate(name: string | undefined, home: string): Promise<number
 /**
  * Run one Eightfold command to completion, printing to stdout/stderr.
  * @param command - the resolved command.
+ * @param harnessVersion - version of the running Eightfold Harness CLI.
  * @returns the process exit code.
  */
-export async function runEightfold(command: EightfoldCommand): Promise<number> {
+export async function runEightfold(command: EightfoldCommand, harnessVersion: string): Promise<number> {
   const home = resolveEightfoldHome()
   try {
     switch (command.command) {
@@ -229,11 +250,11 @@ export async function runEightfold(command: EightfoldCommand): Promise<number> {
       case 'treasury-search':
         return await runTreasurySearch(command.query)
       case 'add':
-        return await runAdd(command.name, home, command.profile)
+        return await runAdd(command.name, home, harnessVersion, command.profile)
       case 'remove':
         return await runRemove(command.name, home)
       case 'update':
-        return await runUpdate(command.name, home)
+        return await runUpdate(command.name, home, harnessVersion)
       /* v8 ignore next -- the union is closed; a new member updates the switch */
       default:
         return assertNever(command)
