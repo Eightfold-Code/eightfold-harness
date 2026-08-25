@@ -36,88 +36,39 @@ describe('CI workflow', () => {
     }
   })
 
-  it('keeps a required Wine Windows job, a non-blocking native Windows job with failover, and a master-only standby', () => {
+  it('runs the Eightfold gates on Node 22 with pnpm 11.7.0', () => {
     const workflow = loadWorkflow('.github/workflows/ci.yml')
-    const masterWorkflow = loadWorkflow('.github/workflows/ci-master.yml')
-    if (!isRecord(workflow.jobs)
-      || !isRecord(workflow.jobs.windows)
-      || !isRecord(workflow.jobs['windows-native'])
-      || !isRecord(workflow.jobs['node-24'])
-      || !isRecord(workflow.jobs['node-24-coverage'])
-      || !isRecord(workflow.jobs['node-24-consumers'])
-      || !isRecord(workflow.jobs['all-checks-passed'])
-      || !isRecord(masterWorkflow.jobs)
-      || !isRecord(masterWorkflow.jobs['wine-apt-cache'])
-      || !isRecord(masterWorkflow.jobs['serial-windows'])) {
-      throw new TypeError('CI workflow must define windows, windows-native, node-24, node-24-coverage, node-24-consumers, and all-checks-passed; ci-master must define wine-apt-cache and serial-windows')
-    }
+    const job = workflowJob(workflow, 'eightfold-ci')
+    if (!Array.isArray(job.steps)) throw new TypeError('Eightfold CI job must define steps')
 
-    const windows = workflow.jobs.windows
-    const windowsNative = workflow.jobs['windows-native']
-    const wineAptCache = masterWorkflow.jobs['wine-apt-cache']
-    const serialWindows = masterWorkflow.jobs['serial-windows']
-    const node24 = workflow.jobs['node-24']
-    const node24Coverage = workflow.jobs['node-24-coverage']
-    const node24Consumers = workflow.jobs['node-24-consumers']
-    const aggregate = workflow.jobs['all-checks-passed']
-    if (!Array.isArray(windows.steps) || !Array.isArray(aggregate.needs)) {
-      throw new TypeError('Windows job must define steps and the aggregate must define needs')
-    }
-    const commandSteps = windows.steps.filter((step): step is Record<string, unknown> & { run: string } => (
-      isRecord(step) && typeof step.run === 'string'
-    ))
+    expect(job['runs-on']).toBe('ubuntu-latest')
+    expect(job.name).toBe('eightfold / node 22')
+    expect(job.if).toBeUndefined()
+    expect(typeof job['timeout-minutes']).toBe('number')
 
-    // Required PR job: Wine on ubuntu-latest, runs wine-windows-gates.sh.
-    expect(windows['runs-on']).toBe('ubuntu-latest')
-    expect(windows.name).toBe('windows node 24 / wine blocking')
-    expect(windows.if).toBe("github.event_name == 'pull_request'")
-    expect(commandSteps.some(step => step.run.includes('wine-windows-gates.sh'))).toBe(true)
-
-    // windows-native: non-blocking native job with failover, runs windows-complete.
-    // Its pool is resolved by the Windows-specific switch.
-    expect(typeof windowsNative['runs-on']).toBe('string')
-    expect(windowsNative['runs-on']).toContain('DSH_CI_FAILOVER_WINDOWS')
-    expect(windowsNative['runs-on']).not.toContain('DSH_CI_FAILOVER_LINUX')
-    expect(windowsNative['runs-on']).toContain('self-hosted')
-    expect(windowsNative['runs-on']).toContain('dsh-win-ci')
-    expect(windowsNative['runs-on']).toContain('dsh-windows-2025-16core')
-    expect(windowsNative.name).toBe('windows node 24 / native complete')
-    expect(windowsNative.if).toBe("github.event_name == 'pull_request'")
-    expect(windowsNative.env).toMatchObject({
-      DSH_COVERAGE_TEST_TIMEOUT_MS: '30000',
+    const steps = job.steps.filter(isRecord)
+    const pnpmSetup = steps.find(step => step.uses === 'pnpm/action-setup@v4')
+    const nodeSetup = steps.find(step => step.uses === 'actions/setup-node@v4')
+    expect(pnpmSetup).toMatchObject({ with: { version: '11.7.0' } })
+    expect(nodeSetup).toMatchObject({
+      with: {
+        'node-version': 22,
+        cache: 'pnpm',
+      },
     })
-    const nativeSteps = windowsNative.steps as unknown[]
-    const nativeCommandSteps = nativeSteps.filter((step): step is Record<string, unknown> & { run: string } => (
-      isRecord(step) && typeof step.run === 'string'
+
+    const commandSteps = steps.filter((step): step is Record<string, unknown> & { run: string } => (
+      typeof step.run === 'string'
     ))
-    expect(nativeCommandSteps.map(step => step.run)).toContain('pnpm run check:ci:windows-complete')
-
-    // wine-apt-cache: master-only, seeds the Wine apt cache, lives in ci-master.
-    expect(wineAptCache.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/master'")
-    expect(wineAptCache['runs-on']).toBe('ubuntu-latest')
-
-    // serial-windows: master-only standby, self-hosted, non-blocking, lives in ci-master.
-    expect(serialWindows.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/master'")
-    expect(serialWindows['runs-on']).toEqual(['self-hosted', 'dsh-win-ci', 'windows'])
-    expect(serialWindows.name).toBe('serial / windows (self-hosted standby)')
-
-    // Aggregate: Wine `windows` required, native `windows-native` excluded.
-    expect(aggregate.needs).toContain('windows')
-    expect(aggregate.needs).not.toContain('windows-native')
-    expect(aggregate.needs).not.toContain('serial-windows')
-
-    // Linux failover is a separate switch: the three required Linux workers
-    // and the verdict job resolve their pool through DSH_CI_FAILOVER_LINUX,
-    // never the Windows switch.
-    for (const [jobName, job] of [['node-24', node24], ['node-24-coverage', node24Coverage], ['node-24-consumers', node24Consumers]] as const) {
-      expect(typeof job['runs-on']).toBe('string')
-      expect(job['runs-on'], `${jobName} runs-on must use the Linux failover switch`).toContain('DSH_CI_FAILOVER_LINUX')
-      expect(job['runs-on'], `${jobName} runs-on must not use the Windows failover switch`).not.toContain('DSH_CI_FAILOVER_WINDOWS')
-      expect(job['runs-on']).toContain('vm-backup')
-    }
-    expect(aggregate['runs-on']).toContain('DSH_CI_FAILOVER_LINUX')
-    expect(aggregate['runs-on']).not.toContain('DSH_CI_FAILOVER_WINDOWS')
-    expect(aggregate['runs-on']).toContain('vm-backup')
+    const commands = commandSteps.map(step => step.run)
+    expect(commands).toEqual([
+      'pnpm install --frozen-lockfile',
+      'pnpm run lint',
+      'pnpm run typecheck',
+      'pnpm run test',
+      'pnpm run build',
+    ])
+    for (const step of commandSteps) expect(typeof step['timeout-minutes']).toBe('number')
   })
 
   it('exempts push from cancellation in ci-master, so one master merge does not cancel the running drill', () => {
@@ -208,23 +159,18 @@ describe('CI workflow', () => {
   })
 
   it('requires one release-shaped Python runtime target on every pull request', () => {
-    const workflow = loadWorkflow('.github/workflows/ci.yml')
-    const pythonRuntime = workflowJob(workflow, 'python-runtime')
-    const aggregate = workflowJob(workflow, 'all-checks-passed')
-    if (!Array.isArray(aggregate.needs)) {
-      throw new TypeError('CI aggregate must define required job dependencies')
-    }
-
-    expect(pythonRuntime).toMatchObject({
-      if: "github.event_name == 'pull_request'",
-      name: 'python runtime / release-shaped Linux x64',
+    // The Eightfold CI no longer runs the Python runtime builder from ci.yml;
+    // release-shaped Linux x64 validation lives in the dispatch-only
+    // python-release workflow.
+    const release = loadWorkflow('.github/workflows/python-release.yml')
+    const build = workflowJob(release, 'build')
+    expect(build).toMatchObject({
       uses: './.github/workflows/build-exe-for-python-sdk.yml',
       with: {
-        targets: 'node24-linux-x64',
-        ci: true,
+        targets: 'node24-linux-x64,node24-linux-arm64,node24-macos-arm64',
+        release: true,
       },
     })
-    expect(aggregate.needs).toContain('python-runtime')
   })
 
   it('keeps every Vitest project process-isolated on native Windows', () => {
