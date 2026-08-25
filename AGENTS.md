@@ -154,10 +154,7 @@ Docs accompany every code change: update affected README and JSDoc contracts tog
 
 # House Writing Standards (Eightfold overlay)
 
-The Eightfold fork follows these additional standards, sourced from
-/home/hermes/AGENTS.md (canonical copy on the orchestration VM). They apply
-to commit messages, documentation, READMEs, and PR descriptions in this
-repository, on top of the DeepSeek Harness conventions above.
+The Eightfold fork follows these additional standards, sourced from /home/hermes/AGENTS.md (canonical copy on the orchestration VM). They apply to commit messages, documentation, READMEs, and PR descriptions in this repository, on top of the DeepSeek Harness conventions above.
 
 ## Git Commit Messages
 
@@ -165,24 +162,18 @@ repository, on top of the DeepSeek Harness conventions above.
 2. Limit the subject line to 50 characters.
 3. Capitalize the subject line.
 4. Do not end the subject line with a period.
-5. Use the imperative mood in the subject line: "If applied, this commit
-   will ..." ("Add login", not "Added login").
+5. Use the imperative mood in the subject line: "If applied, this commit will ..." ("Add login", not "Added login").
 6. Wrap the body at 72 characters.
 7. The body explains what and why, never how; the diff already shows how.
 
 ## Documentation and Technical Writing
 
-1. Be concise: one idea per sentence, sentences under ~20 words where
-   possible.
-2. Use active voice and present tense. Prefer "The server returns the
-   file" over "The file is returned by the server".
-3. Write instructions in the imperative mood: "Click Save", "Run the
-   installer".
+1. Be concise: one idea per sentence, sentences under ~20 words where possible.
+2. Use active voice and present tense. Prefer "The server returns the file" over "The file is returned by the server".
+3. Write instructions in the imperative mood: "Click Save", "Run the installer".
 4. Use standard, consistent terminology; define acronyms on first use.
-5. Avoid jargon, idioms, slang, and metaphors; write for a global audience
-   including non-native speakers.
-6. Use "must" for requirements, "should" for recommendations, "may" for
-   permission. Avoid "shall" in user documentation.
+5. Avoid jargon, idioms, slang, and metaphors; write for a global audience including non-native speakers.
+6. Use "must" for requirements, "should" for recommendations, "may" for permission. Avoid "shall" in user documentation.
 7. Number steps when order matters; use bullets otherwise.
 8. Keep paragraphs short; prefer lists and tables over long prose.
 9. Verify every claim against real behavior before writing it down.
