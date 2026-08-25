@@ -29,6 +29,22 @@ describe('parseTarArchive', () => {
     expect(() => parseTarArchive(archive)).toThrow('unsupported tarball entry type "2"')
   })
 
+  it('skips pax and GNU metadata entries without interpreting their payload', () => {
+    // A pax global header (type 'g') carrying a 27-byte record, then a file.
+    const meta = Buffer.alloc(512)
+    meta.write('pax_global_header', 0, 100, 'utf8')
+    meta.write(`${(27).toString(8).padStart(11, '0')}\0`, 124, 'utf8')
+    meta[156] = 'g'.charCodeAt(0)
+    const file = Buffer.alloc(512)
+    file.write('repo-deadbeef/eightfold.json', 0, 100, 'utf8')
+    file.write('0\0', 124, 'utf8')
+    file[156] = '0'.charCodeAt(0)
+    const archive = Buffer.concat([meta, Buffer.alloc(512), file, Buffer.alloc(1024)])
+    const entries = parseTarArchive(archive)
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({ path: 'repo-deadbeef/eightfold.json', type: 'file' })
+  })
+
   it('rejects data that extends past the archive', () => {
     const header = Buffer.alloc(512)
     header.write('repo-deadbeef/file', 0, 100, 'utf8')

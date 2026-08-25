@@ -27,8 +27,20 @@ const PREFIX_FIELD = 155
 const REGULAR_FILE_ZERO = 0x00
 const REGULAR_FILE = 0x30
 const DIRECTORY = 0x35
+const GNU_LONG_NAME = 0x4c
+const GNU_LONG_LINK = 0x4b
+const PAX_EXTENDED = 0x78
+const PAX_GLOBAL = 0x67
 const BASE_256_MARK = 0x80
 const BASE_256_SIGN = 0x40
+
+/**
+ * Entry types whose data payload is metadata, never file content: pax
+ * extended/global headers and GNU long-name/link records. Their payload is
+ * skipped and never interpreted; the following ustar header is still parsed
+ * and path-validated independently, so a forged record cannot smuggle a path.
+ */
+const METADATA_TYPES = new Set([GNU_LONG_NAME, GNU_LONG_LINK, PAX_EXTENDED, PAX_GLOBAL])
 
 /**
  * Decompress a gzip archive. The whole archive stays in memory so every entry
@@ -99,6 +111,8 @@ export function parseTarArchive(buffer: Uint8Array): TarEntry[] {
       // Directory names conventionally end in `/`; normalize so downstream
       // path handling sees one consistent form.
       entries.push({ path: path.replace(/\/+$/, ''), type: 'directory', data: new Uint8Array() })
+    } else if (METADATA_TYPES.has(type)) {
+      // Skip the metadata payload; the next header is parsed independently.
     } else {
       throw new Error(`treasury: unsupported tarball entry type ${JSON.stringify(String.fromCharCode(type))} for ${path}`)
     }
