@@ -8,7 +8,7 @@
  * `@deepseek-ai/dsh-cmdline`). Launcher flags therefore come first: the first
  * token this parser does not recognize starts the inner arguments, so
  * `dsh --profile tui --resume abc` boots the tui profile with `--resume abc`,
- * and `dsh --profile web -h` prints the web app's help, not this one's.
+ * and `dsh --profile web --help` prints the web app's help, not this one's.
  *
  * `web` is a hardcoded alias for `--profile web`; `plugin` manages a profile's
  * plugin dependencies by forwarding to pnpm.
@@ -48,7 +48,7 @@ interface PluginInvocation {
 export type EightfoldCommand =
   | { readonly command: 'treasury-list' }
   | { readonly command: 'treasury-search'; readonly query: string }
-  | { readonly command: 'add'; readonly name: string }
+  | { readonly command: 'add'; readonly name: string; readonly profile?: string }
   | { readonly command: 'remove'; readonly name: string }
   | { readonly command: 'update'; readonly name?: string }
 
@@ -87,6 +87,7 @@ Examples:
   dsh --profile tui --resume <session>       arguments after the launcher flags reach the app
   dsh --profile web --help                   the web app's own flags and help
   dsh plugin --profile tui add <package>     install a plugin into the tui profile
+  dsh eightfold add developer --profile tui download a Treasury bundle and activate it in tui
 `
 
 /**
@@ -212,11 +213,15 @@ export function parseDshArgs(argv: readonly string[], version: string): DshInvoc
       if (query.length === 0) program.error('error: eightfold treasury search needs a query')
       resolved = { mode: 'eightfold', command: { command: 'treasury-search', query } }
     })
-  eightfold.command('add <name>').description('install an adaptation from the Treasury registry')
-    .action((name: string) => {
+  eightfold.command('add <name>').description('install an adaptation or bundle from Treasury')
+    .option('--profile <name>', 'also activate the installed adaptation(s) in this Harness profile')
+    .action((name: string, options: { profile?: string }) => {
       rejectParentOptions('eightfold')
-      if (name.length === 0) program.error('error: eightfold add needs an adaptation name')
-      resolved = { mode: 'eightfold', command: { command: 'add', name } }
+      if (name.length === 0) program.error('error: eightfold add needs an adaptation or bundle name')
+      if (options.profile === '') program.error('error: --profile needs a name')
+      resolved = options.profile === undefined
+        ? { mode: 'eightfold', command: { command: 'add', name } }
+        : { mode: 'eightfold', command: { command: 'add', name, profile: options.profile } }
     })
   eightfold.command('remove <name>').description('uninstall an installed adaptation')
     .action((name: string) => {
