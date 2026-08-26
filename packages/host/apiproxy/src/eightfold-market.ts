@@ -104,7 +104,7 @@ async function fetchJson(url: string): Promise<unknown> {
   return response.json() as Promise<unknown>
 }
 
-async function fetchOptionalJson(url: string): Promise<unknown | undefined> {
+async function fetchOptionalJson(url: string): Promise<unknown> {
   const response = await fetch(url, { signal: AbortSignal.timeout(MARKET_FETCH_TIMEOUT_MS) })
   if (response.status === 404) return undefined
   if (!response.ok) {

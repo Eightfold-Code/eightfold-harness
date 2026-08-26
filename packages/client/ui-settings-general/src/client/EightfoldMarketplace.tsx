@@ -188,7 +188,7 @@ export function EightfoldMarketplace({
                 value={query}
                 placeholder={t('market.search')}
                 aria-label={t('market.search')}
-                onChange={event => { setQuery(event.currentTarget.value) }}
+                onChange={(event) => { setQuery(event.currentTarget.value) }}
               />
               <button
                 type="button"
