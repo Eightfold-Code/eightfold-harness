@@ -451,6 +451,7 @@ export abstract class AbstractApiClient implements IApiClient {
     openPath: (payload, signal) => this.callUnary('host.openPath', payload, signal),
     eightfoldCatalog: (payload, signal) => this.callUnary('host.eightfoldCatalog', payload, signal),
     eightfoldInstall: (payload, signal) => this.callUnary('host.eightfoldInstall', payload, signal),
+    eightfoldTheme: (payload, signal) => this.callUnary('host.eightfoldTheme', payload, signal),
   }
 
   readonly workspace: IApiClient['workspace'] = {
