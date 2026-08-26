@@ -23,6 +23,7 @@ import {
   resolveCommit,
   resolveEightfoldHome,
   type AdaptationDescriptor,
+  type TarEntry,
 } from '@deepseek-ai/dsh-treasury'
 import type { EightfoldCatalogItem, EightfoldCatalogKind } from './api/host.ts'
 
@@ -202,8 +203,8 @@ async function treasuryCatalog(home: string): Promise<EightfoldCatalogItem[]> {
       }
     }),
   )
-  return rows.filter((row): row is EightfoldCatalogItem => row !== undefined)
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const items: EightfoldCatalogItem[] = rows.filter((row): row is EightfoldCatalogItem => row !== undefined)
+  return items.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 async function armouryCatalog(home: string): Promise<EightfoldCatalogItem[]> {
@@ -239,8 +240,8 @@ async function armouryCatalog(home: string): Promise<EightfoldCatalogItem[]> {
       }
     }),
   )
-  return rows.filter((row): row is EightfoldCatalogItem => row !== undefined)
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const items: EightfoldCatalogItem[] = rows.filter((row): row is EightfoldCatalogItem => row !== undefined)
+  return items.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 function safeRootPath(path: string): string {
@@ -265,7 +266,8 @@ async function installSkin(home: string, id: string, descriptor: ArmourySkinDesc
     fetch,
     `https://codeload.github.com/${descriptor.source.repository}/tar.gz/${commit}`,
   )
-  const planned = planExtraction(parseTarArchive(decompressTarGz(archive)))
+  const archiveEntries: TarEntry[] = parseTarArchive(decompressTarGz(archive))
+  const planned = planExtraction(archiveEntries)
   const manifestName = descriptor.manifest ?? 'eightfold.skin.json'
   const manifestData = planned.find(entry => entry.type === 'file'
     && entry.segments.length === 1 && entry.segments[0] === manifestName)?.data

@@ -77,6 +77,12 @@ function scriptedApi(overrides: {
       pickDirectory: r => ok(r, { path: null }),
       listDirectory: r => ok(r, { path: '/t', home: '/t', crumbs: [], entries: [], truncated: false }),
       createDirectory: r => ok(r, { path: '/t/new' }),
+      eightfoldCatalog: r => ok(r, { items: [] }),
+      eightfoldInstall: r => ok(r, {
+        id: r.payload.id,
+        version: '0-test',
+        commit: '0000000000000000000000000000000000000000',
+      }),
       openPath: r => ok(r, { opened: true as const }),
       ...overrides.host,
     },

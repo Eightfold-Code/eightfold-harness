@@ -181,6 +181,17 @@ export class FakeApiClient implements IApiClient {
     listDirectory: (payload: unknown) => this.record('host.listDirectory', payload, this.onListDirectory(payload)),
     createDirectory: (payload: unknown) => this.record('host.createDirectory', payload, this.onCreateDirectory(payload)),
     openPath: (payload: unknown) => this.record('host.openPath', payload, this.onOpenPath(payload)),
+    eightfoldCatalog: (payload: unknown) => this.record('host.eightfoldCatalog', payload, Promise.resolve(ok({ items: [] }))),
+    eightfoldInstall: (payload: unknown) => {
+      const id = typeof payload === 'object' && payload !== null && 'id' in payload && typeof payload.id === 'string'
+        ? payload.id
+        : 'fixture'
+      return this.record('host.eightfoldInstall', payload, Promise.resolve(ok({
+        id,
+        version: '0-test',
+        commit: '0000000000000000000000000000000000000000',
+      })))
+    },
   }
 
   // The archive-set field defaults at the binding below so list stubs keep

@@ -156,6 +156,22 @@ function fakeApi(overrides: Partial<{ muxFrames: MuxFrame[]; hostFrames: HostFra
       async createDirectory(request) {
         return { rpcId: request.rpcId, result: { ok: true, value: { path: '/w/new' } } }
       },
+      async eightfoldCatalog(request) {
+        return { rpcId: request.rpcId, result: { ok: true, value: { items: [] } } }
+      },
+      async eightfoldInstall(request) {
+        return {
+          rpcId: request.rpcId,
+          result: {
+            ok: true,
+            value: {
+              id: request.payload.id,
+              version: '0-test',
+              commit: '0000000000000000000000000000000000000000',
+            },
+          },
+        }
+      },
       async openPath(request) {
         return { rpcId: request.rpcId, result: { ok: true, value: { opened: true as const } } }
       },

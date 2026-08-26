@@ -2655,6 +2655,12 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         directoryTree.set(target, [])
         return ok(request, { path: target })
       },
+      eightfoldCatalog: request => ok(request, { items: [] }),
+      eightfoldInstall: request => ok(request, {
+        id: request.payload.id,
+        version: '0-test',
+        commit: '0000000000000000000000000000000000000000',
+      }),
       openPath: request => ok(request, { opened: true as const }),
     },
     workspace: {
@@ -3195,6 +3201,8 @@ export class FixtureApiClient extends AbstractApiClient {
       case 'host.pickDirectory': return this.api.host.pickDirectory(request, new AbortController().signal)
       case 'host.listDirectory': return this.api.host.listDirectory(request, new AbortController().signal)
       case 'host.createDirectory': return this.api.host.createDirectory(request)
+      case 'host.eightfoldCatalog': return this.api.host.eightfoldCatalog(request)
+      case 'host.eightfoldInstall': return this.api.host.eightfoldInstall(request)
       case 'host.openPath': return this.api.host.openPath(request, new AbortController().signal)
       case 'workspace.list': return this.api.workspace.list(request)
       case 'workspace.create': return this.api.workspace.create(request)
