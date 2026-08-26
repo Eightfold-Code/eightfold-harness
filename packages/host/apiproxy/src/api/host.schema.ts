@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod'
-import type { DirectoryEntry } from './host.ts'
+import type { DirectoryEntry, EightfoldCatalogItem } from './host.ts'
 import type { RequestPayload, ResponseValue } from './rpc-map.ts'
 import type { Wire } from './rpc.schema.ts'
 
@@ -64,6 +64,7 @@ export const hostCreateDirectoryRequestSchema = z.object({
 export const hostCreateDirectoryValueSchema = z.object({
   path: z.string(),
 }) satisfies z.ZodType<Wire<ResponseValue<'host.createDirectory'>>>
+
 /** host.openPath request payload. */
 export const hostOpenPathRequestSchema = z.object({
   path: z.string().min(1),
@@ -73,3 +74,49 @@ export const hostOpenPathRequestSchema = z.object({
 export const hostOpenPathValueSchema = z.object({
   opened: z.literal(true),
 }) satisfies z.ZodType<Wire<ResponseValue<'host.openPath'>>>
+
+/** The two Eightfold registries exposed as in-Harness catalogs. */
+export const eightfoldCatalogKindSchema = z.union([
+  z.literal('treasury'),
+  z.literal('armoury'),
+])
+
+/** One branch-backed marketplace card. */
+export const eightfoldCatalogItemSchema = z.object({
+  id: z.string().min(1),
+  kind: eightfoldCatalogKindSchema,
+  name: z.string().min(1),
+  description: z.string().min(1),
+  version: z.string().min(1),
+  repository: z.string().min(1),
+  branch: z.string().min(1),
+  commit: z.string().regex(/^[0-9a-f]{40}$/),
+  tags: z.array(z.string()),
+  coverUrl: z.string().optional(),
+  installed: z.boolean(),
+  updateAvailable: z.boolean(),
+  installedVersion: z.string().optional(),
+}) satisfies z.ZodType<Wire<EightfoldCatalogItem>>
+
+/** host.eightfoldCatalog request payload. */
+export const hostEightfoldCatalogRequestSchema = z.object({
+  kind: eightfoldCatalogKindSchema,
+}) satisfies z.ZodType<Wire<RequestPayload<'host.eightfoldCatalog'>>>
+
+/** host.eightfoldCatalog response value. */
+export const hostEightfoldCatalogValueSchema = z.object({
+  items: z.array(eightfoldCatalogItemSchema),
+}) satisfies z.ZodType<Wire<ResponseValue<'host.eightfoldCatalog'>>>
+
+/** host.eightfoldInstall request payload. */
+export const hostEightfoldInstallRequestSchema = z.object({
+  kind: eightfoldCatalogKindSchema,
+  id: z.string().min(1),
+}) satisfies z.ZodType<Wire<RequestPayload<'host.eightfoldInstall'>>>
+
+/** host.eightfoldInstall response value. */
+export const hostEightfoldInstallValueSchema = z.object({
+  id: z.string().min(1),
+  version: z.string().min(1),
+  commit: z.string().regex(/^[0-9a-f]{40}$/),
+}) satisfies z.ZodType<Wire<ResponseValue<'host.eightfoldInstall'>>>
