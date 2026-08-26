@@ -11,18 +11,19 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { z } from 'zod'
 import {
+  decompressTarGz,
   downloadBytes,
   extractPlanned,
   fetchRegistry,
   installAdaptation,
   parseRegistry,
+  parseTarArchive,
   planExtraction,
   readInstalledState,
   resolveCommit,
   resolveEightfoldHome,
   type AdaptationDescriptor,
 } from '@deepseek-ai/dsh-treasury'
-import { decompressTarGz, parseTarArchive } from '@deepseek-ai/dsh-treasury/src/tar.ts'
 import type { EightfoldCatalogItem, EightfoldCatalogKind } from './api/host.ts'
 
 const MARKET_MANIFEST = 'eightfold.market.json'
@@ -129,7 +130,11 @@ function descriptorForSource(descriptor: ArmourySkinDescriptor): AdaptationDescr
     name: descriptor.name,
     description: descriptor.description,
     version: descriptor.version,
-    source: descriptor.source,
+    source: {
+      repository: descriptor.source.repository,
+      branch: descriptor.source.branch,
+      ...(descriptor.source.commit === undefined ? {} : { commit: descriptor.source.commit }),
+    },
     entry: descriptor.manifest ?? 'eightfold.skin.json',
     compatibility: descriptor.compatibility ?? {},
   }
@@ -167,36 +172,36 @@ async function writeArmouryState(home: string, state: ArmouryState): Promise<voi
 async function treasuryCatalog(home: string): Promise<EightfoldCatalogItem[]> {
   const registry = parseRegistry(await fetchRegistry())
   const installed = await readInstalledState(home)
-  const rows = await Promise.all(Object.entries(registry.adaptations).map(async ([id, descriptor]) => {
-    let market: MarketManifest | undefined
-    try {
-      market = await readMarketManifest(descriptor.source.repository, descriptor.source.branch)
-    } catch (error: unknown) {
-      console.warn(`[eightfold marketplace] ignoring invalid metadata for Treasury ${id}:`, error)
-      return undefined
-    }
-    // No card manifest means the branch has not opted into the Harness catalog.
-    if (market === undefined) return undefined
-    const commit = await resolveCommit(descriptor)
-    const current = installed.adaptations[id]
-    return {
-      id,
-      kind: 'treasury' as const,
-      name: market.name,
-      description: market.description,
-      version: descriptor.version,
-      repository: descriptor.source.repository,
-      branch: descriptor.source.branch,
-      commit,
-      tags: market.tags ?? [],
-      ...coverUrl(descriptor.source.repository, descriptor.source.branch, market.cover) === undefined
-        ? {}
-        : { coverUrl: coverUrl(descriptor.source.repository, descriptor.source.branch, market.cover) },
-      installed: current !== undefined,
-      updateAvailable: current !== undefined && current.source.commit !== commit,
-      ...current === undefined ? {} : { installedVersion: current.manifest.version },
-    } satisfies EightfoldCatalogItem
-  }))
+  const rows: (EightfoldCatalogItem | undefined)[] = await Promise.all(
+    Object.entries(registry.adaptations).map(async ([id, descriptor]): Promise<EightfoldCatalogItem | undefined> => {
+      let market: MarketManifest | undefined
+      try {
+        market = await readMarketManifest(descriptor.source.repository, descriptor.source.branch)
+      } catch (error: unknown) {
+        console.warn(`[eightfold marketplace] ignoring invalid metadata for Treasury ${id}:`, error)
+        return undefined
+      }
+      if (market === undefined) return undefined
+      const commit = await resolveCommit(descriptor)
+      const current = installed.adaptations[id]
+      const resolvedCover = coverUrl(descriptor.source.repository, descriptor.source.branch, market.cover)
+      return {
+        id,
+        kind: 'treasury',
+        name: market.name,
+        description: market.description,
+        version: descriptor.version,
+        repository: descriptor.source.repository,
+        branch: descriptor.source.branch,
+        commit,
+        tags: market.tags ?? [],
+        ...(resolvedCover === undefined ? {} : { coverUrl: resolvedCover }),
+        installed: current !== undefined,
+        updateAvailable: current !== undefined && current.source.commit !== commit,
+        ...(current === undefined ? {} : { installedVersion: current.manifest.version }),
+      }
+    }),
+  )
   return rows.filter((row): row is EightfoldCatalogItem => row !== undefined)
     .sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -204,34 +209,36 @@ async function treasuryCatalog(home: string): Promise<EightfoldCatalogItem[]> {
 async function armouryCatalog(home: string): Promise<EightfoldCatalogItem[]> {
   const registry = armouryRegistrySchema.parse(await fetchJson(ARMOURY_REGISTRY_URL))
   const installed = await readArmouryState(home)
-  const rows = await Promise.all(Object.entries(registry.skins).map(async ([id, descriptor]) => {
-    let market: MarketManifest | undefined
-    try {
-      market = await readMarketManifest(descriptor.source.repository, descriptor.source.branch)
-    } catch (error: unknown) {
-      console.warn(`[eightfold marketplace] ignoring invalid metadata for Armoury ${id}:`, error)
-      return undefined
-    }
-    if (market === undefined) return undefined
-    const commit = await resolveSourceCommit(descriptor)
-    const current = installed.skins[id]
-    const resolvedCover = coverUrl(descriptor.source.repository, descriptor.source.branch, market.cover)
-    return {
-      id,
-      kind: 'armoury' as const,
-      name: market.name,
-      description: market.description,
-      version: descriptor.version,
-      repository: descriptor.source.repository,
-      branch: descriptor.source.branch,
-      commit,
-      tags: market.tags ?? [],
-      ...(resolvedCover === undefined ? {} : { coverUrl: resolvedCover }),
-      installed: current !== undefined,
-      updateAvailable: current !== undefined && current.source.commit !== commit,
-      ...(current === undefined ? {} : { installedVersion: current.version }),
-    } satisfies EightfoldCatalogItem
-  }))
+  const rows: (EightfoldCatalogItem | undefined)[] = await Promise.all(
+    Object.entries(registry.skins).map(async ([id, descriptor]): Promise<EightfoldCatalogItem | undefined> => {
+      let market: MarketManifest | undefined
+      try {
+        market = await readMarketManifest(descriptor.source.repository, descriptor.source.branch)
+      } catch (error: unknown) {
+        console.warn(`[eightfold marketplace] ignoring invalid metadata for Armoury ${id}:`, error)
+        return undefined
+      }
+      if (market === undefined) return undefined
+      const commit = await resolveSourceCommit(descriptor)
+      const current = installed.skins[id]
+      const resolvedCover = coverUrl(descriptor.source.repository, descriptor.source.branch, market.cover)
+      return {
+        id,
+        kind: 'armoury',
+        name: market.name,
+        description: market.description,
+        version: descriptor.version,
+        repository: descriptor.source.repository,
+        branch: descriptor.source.branch,
+        commit,
+        tags: market.tags ?? [],
+        ...(resolvedCover === undefined ? {} : { coverUrl: resolvedCover }),
+        installed: current !== undefined,
+        updateAvailable: current !== undefined && current.source.commit !== commit,
+        ...(current === undefined ? {} : { installedVersion: current.version }),
+      }
+    }),
+  )
   return rows.filter((row): row is EightfoldCatalogItem => row !== undefined)
     .sort((a, b) => a.name.localeCompare(b.name))
 }
