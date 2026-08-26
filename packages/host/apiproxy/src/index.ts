@@ -17,6 +17,7 @@ import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
 import type { ApiProxy } from './api/index.ts'
 import { createApiProxy, DEFAULT_COLD_BLANK_PROBE_MAX_BYTES } from './api-proxy.ts'
+import { installEightfoldItem, readEightfoldCatalog } from './eightfold-market.ts'
 import {
   DEFAULT_SESSION_LOG_COMPRESSION_LEVEL,
   type SessionLogCompressionLevel,
@@ -110,7 +111,49 @@ export class ApiProxyService extends Service implements ApiProxy {
     this.sessions = api.sessions
     this.subagents = api.subagents
     this.workspace = api.workspace
-    this.host = api.host
+    this.host = {
+      ...api.host,
+      eightfoldCatalog: async (request) => {
+        try {
+          return {
+            rpcId: request.rpcId,
+            result: { ok: true as const, value: { items: await readEightfoldCatalog(request.payload.kind) } },
+          }
+        } catch (error: unknown) {
+          return {
+            rpcId: request.rpcId,
+            result: {
+              ok: false as const,
+              error: {
+                code: 'internal' as const,
+                message: `failed to read Eightfold ${request.payload.kind} catalog: ${error instanceof Error ? error.message : String(error)}`,
+                details: {},
+              },
+            },
+          }
+        }
+      },
+      eightfoldInstall: async (request) => {
+        try {
+          return {
+            rpcId: request.rpcId,
+            result: { ok: true as const, value: await installEightfoldItem(request.payload.kind, request.payload.id) },
+          }
+        } catch (error: unknown) {
+          return {
+            rpcId: request.rpcId,
+            result: {
+              ok: false as const,
+              error: {
+                code: 'internal' as const,
+                message: `failed to install Eightfold ${request.payload.kind} item ${JSON.stringify(request.payload.id)}: ${error instanceof Error ? error.message : String(error)}`,
+                details: {},
+              },
+            },
+          }
+        }
+      },
+    }
     this.goals = api.goals
     this.skills = api.skills
     this.agentPresets = api.agentPresets
