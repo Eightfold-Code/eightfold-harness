@@ -111,7 +111,7 @@ export function apply(ctx: ClientContext): void {
   // locale/change re-registration wiring.
   const t = ctx.locale.bind(NS)
   const connection = ctx.get('connection') as ConnectionHandle
-  const theme = ctx.get('theme', false) as ThemeRuntime | undefined
+  const theme = ctx.get('theme', false)
 
   // Armoury and Treasury deliberately occupy the generic sidebar-footer slot,
   // which SidebarRoot renders immediately above Settings. The Host pins both

@@ -225,7 +225,7 @@ export class ThemeRuntime {
       throw new Error(`theme "${id}" is not registered`)
     }
     if (this.preference === id) return
-    this.preference = id as ThemePreference
+    this.preference = id
     void this.host.set(THEME_PREFERENCE_FIELD, id)
     this.publish()
   }
