@@ -83,6 +83,13 @@ function scriptedApi(overrides: {
         version: '0-test',
         commit: '0000000000000000000000000000000000000000',
       }),
+      eightfoldTheme: r => ok(r, {
+        id: r.payload.id,
+        name: 'Fixture theme',
+        version: '0-test',
+        colorScheme: 'dark' as const,
+        tokens: {},
+      }),
       openPath: r => ok(r, { opened: true as const }),
       ...overrides.host,
     },

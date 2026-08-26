@@ -59,6 +59,15 @@ export interface EightfoldInstallReceipt {
   commit: string
 }
 
+/** One installed Armoury theme resolved into Harness CSS custom-property tokens. */
+export interface EightfoldTheme {
+  id: string
+  name: string
+  version: string
+  colorScheme: 'light' | 'dark'
+  tokens: Record<string, string>
+}
+
 /** Host-level unary methods. */
 export interface HostApi {
   /**
@@ -139,4 +148,12 @@ export interface HostApi {
   eightfoldInstall(
     request: RpcRequest<{ kind: EightfoldCatalogKind; id: string }>,
   ): Promise<RpcResponse<EightfoldInstallReceipt>>
+
+  /**
+   * Read one installed Armoury theme so the browser can register and activate
+   * its presentation tokens. The Host remains the filesystem authority.
+   */
+  eightfoldTheme(
+    request: RpcRequest<{ id: string }>,
+  ): Promise<RpcResponse<EightfoldTheme>>
 }

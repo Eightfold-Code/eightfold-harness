@@ -28,6 +28,10 @@ interface CatalogItem {
 export interface EightfoldMarketplaceInjected {
   connection: ConnectionHandle
   kind: MarketKind
+  /** Load, register, select, and persist one installed Armoury theme. */
+  setAsTheme?: (id: string) => Promise<void>
+  /** Read the currently persisted theme id for button state. */
+  getActiveThemeId?: () => string
 }
 
 /** Sidebar runtime props plus marketplace dependencies and settings copy. */
@@ -52,7 +56,7 @@ function copyFor(kind: MarketKind): {
 
 /** Render one catalog trigger and its searchable install surface. */
 export function EightfoldMarketplace({
-  wide, connection, kind, t,
+  wide, connection, kind, t, setAsTheme: applyTheme, getActiveThemeId,
 }: EightfoldMarketplaceProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -60,8 +64,10 @@ export function EightfoldMarketplace({
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set())
+  const [themePending, setThemePending] = useState<ReadonlySet<string>>(new Set())
   const [actionErrors, setActionErrors] = useState<ReadonlyMap<string, string>>(new Map())
   const [revision, setRevision] = useState(0)
+  const [activeThemeId, setActiveThemeId] = useState(() => getActiveThemeId?.() ?? '')
   const copy = copyFor(kind)
 
   useEffect(() => {
@@ -84,6 +90,11 @@ export function EightfoldMarketplace({
       })
     return () => { current = false }
   }, [connection, kind, open, revision])
+
+  useEffect(() => {
+    if (!open || getActiveThemeId === undefined) return
+    setActiveThemeId(getActiveThemeId())
+  }, [getActiveThemeId, open])
 
   useEffect(() => {
     if (!open) return
@@ -126,6 +137,32 @@ export function EightfoldMarketplace({
       })
     } finally {
       setPending((current) => {
+        const next = new Set(current)
+        next.delete(item.id)
+        return next
+      })
+    }
+  }
+
+  const setTheme = async (item: CatalogItem): Promise<void> => {
+    if (applyTheme === undefined || getActiveThemeId === undefined || themePending.has(item.id)) return
+    setThemePending(current => new Set([...current, item.id]))
+    setActionErrors((current) => {
+      const next = new Map(current)
+      next.delete(item.id)
+      return next
+    })
+    try {
+      await applyTheme(item.id)
+      setActiveThemeId(getActiveThemeId())
+    } catch (error: unknown) {
+      setActionErrors((current) => {
+        const next = new Map(current)
+        next.set(item.id, messageOf(error))
+        return next
+      })
+    } finally {
+      setThemePending((current) => {
         const next = new Set(current)
         next.delete(item.id)
         return next
@@ -219,6 +256,12 @@ export function EightfoldMarketplace({
               <div className={css.grid}>
                 {visible.map((item) => {
                   const busy = pending.has(item.id)
+                  const themeBusy = themePending.has(item.id)
+                  const themeActive = activeThemeId === item.id
+                  const themeAvailable = kind === 'armoury'
+                    && item.installed
+                    && applyTheme !== undefined
+                    && getActiveThemeId !== undefined
                   const error = actionErrors.get(item.id)
                   const actionable = !item.installed || item.updateAvailable
                   return (
@@ -272,20 +315,36 @@ export function EightfoldMarketplace({
 
                         <div className={css.cardActions}>
                           <span className={css.source}>{item.repository}</span>
-                          <button
-                            type="button"
-                            className={css.installButton}
-                            disabled={busy || !actionable}
-                            onClick={() => { void install(item) }}
-                          >
-                            {busy
-                              ? t('market.installing')
-                              : item.updateAvailable
-                                ? t('market.update')
-                                : item.installed
-                                  ? t('market.installed')
-                                  : t('market.install')}
-                          </button>
+                          <div className={css.actionButtons}>
+                            <button
+                              type="button"
+                              className={css.installButton}
+                              disabled={busy || !actionable}
+                              onClick={() => { void install(item) }}
+                            >
+                              {busy
+                                ? t('market.installing')
+                                : item.updateAvailable
+                                  ? t('market.update')
+                                  : item.installed
+                                    ? t('market.installed')
+                                    : t('market.install')}
+                            </button>
+                            {themeAvailable ? (
+                              <button
+                                type="button"
+                                className={css.themeButton}
+                                disabled={themeBusy || themeActive}
+                                onClick={() => { void setTheme(item) }}
+                              >
+                                {themeBusy
+                                  ? t('market.settingTheme')
+                                  : themeActive
+                                    ? t('market.activeTheme')
+                                    : t('market.setTheme')}
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     </article>

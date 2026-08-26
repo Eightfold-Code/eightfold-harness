@@ -172,6 +172,21 @@ function fakeApi(overrides: Partial<{ muxFrames: MuxFrame[]; hostFrames: HostFra
           },
         }
       },
+      async eightfoldTheme(request) {
+        return {
+          rpcId: request.rpcId,
+          result: {
+            ok: true,
+            value: {
+              id: request.payload.id,
+              name: 'Fixture theme',
+              version: '0-test',
+              colorScheme: 'dark' as const,
+              tokens: {},
+            },
+          },
+        }
+      },
       async openPath(request) {
         return { rpcId: request.rpcId, result: { ok: true, value: { opened: true as const } } }
       },

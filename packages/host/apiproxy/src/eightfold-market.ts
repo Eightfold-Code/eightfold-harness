@@ -25,7 +25,7 @@ import {
   type AdaptationDescriptor,
   type TarEntry,
 } from '@deepseek-ai/dsh-treasury'
-import type { EightfoldCatalogItem, EightfoldCatalogKind } from './api/host.ts'
+import type { EightfoldCatalogItem, EightfoldCatalogKind, EightfoldTheme } from './api/host.ts'
 
 const MARKET_MANIFEST = 'eightfold.market.json'
 const ARMOURY_REGISTRY_URL =
@@ -89,6 +89,55 @@ const skinManifestSchema = z.object({
   version: z.string().min(1),
   entry: z.string().min(1),
   presentationOnly: z.literal(true),
+})
+
+const themeManifestSchema = z.object({
+  schemaVersion: z.union([z.literal('1.0'), z.literal(1)]),
+  id: z.string().min(1),
+  mode: z.union([z.literal('light'), z.literal('dark')]),
+  tokens: z.object({
+    colors: z.string().min(1),
+    typography: z.string().min(1),
+  }),
+})
+
+const colorTokenFileSchema = z.object({
+  schemaVersion: z.union([z.literal('1.0'), z.literal(1)]),
+  colors: z.record(z.string(), z.string()),
+})
+
+const typographyTokenFileSchema = z.object({
+  schemaVersion: z.union([z.literal('1.0'), z.literal(1)]),
+  typography: z.object({
+    fontFamily: z.object({
+      sans: z.string().min(1).optional(),
+      mono: z.string().min(1).optional(),
+    }).optional(),
+  }),
+})
+
+const ARMOURY_COLOR_VARIABLES: Readonly<Record<string, string>> = Object.freeze({
+  background: '--dsw-alias-bg-base',
+  surface: '--dsw-alias-bg-layer-1',
+  surfaceElevated: '--dsw-alias-bg-layer-2',
+  surfaceMuted: '--dsw-alias-bg-layer-3',
+  text: '--dsw-alias-label-primary',
+  textMuted: '--dsw-alias-label-secondary',
+  textSubtle: '--dsw-alias-label-tertiary',
+  border: '--dsw-alias-border-l1',
+  borderStrong: '--dsw-alias-border-l2',
+  accent: '--dsw-alias-brand-primary',
+  accentStrong: '--dsw-alias-label-primary-bluish',
+  accentContrast: '--dsw-alias-label-primary-foreground',
+  success: '--dsw-alias-state-success-primary',
+  warning: '--dsw-alias-state-warn-primary',
+  danger: '--dsw-alias-state-error-primary',
+  focus: '--dsw-alias-brand-primary-new-colorprimary-new-color',
+})
+
+const ARMOURY_FONT_VARIABLES = Object.freeze({
+  sans: '--dsw-font-family',
+  mono: '--ds-font-family-code',
 })
 
 function rawUrl(repository: string, ref: string, path: string): string {
@@ -254,6 +303,66 @@ function safeRootPath(path: string): string {
     throw new Error(`armoury: unsafe skin entry path ${JSON.stringify(path)}`)
   }
   return normalized
+}
+
+function safeInstalledSkinId(id: string): string {
+  if (id.length === 0 || id === '.' || id === '..' || /[/\\]/.test(id)) {
+    throw new Error(`armoury: unsafe skin id ${JSON.stringify(id)}`)
+  }
+  return id
+}
+
+async function readJsonFile(root: string, path: string): Promise<unknown> {
+  return JSON.parse(await readFile(join(root, safeRootPath(path)), 'utf8')) as unknown
+}
+
+/**
+ * Resolve one installed Armoury skin into the client ThemeRuntime contract.
+ * Only the semantic color/font tokens understood by Harness are exposed; the
+ * skin remains data-only and cannot execute code in the browser.
+ */
+export async function readEightfoldTheme(id: string): Promise<EightfoldTheme> {
+  const home = resolveEightfoldHome()
+  const installed = await readArmouryState(home)
+  if (installed.skins[id] === undefined) {
+    throw new Error(`armoury: skin ${JSON.stringify(id)} is not installed`)
+  }
+
+  const root = join(skinsDirectory(home), safeInstalledSkinId(id))
+  const skin = skinManifestSchema.parse(await readJsonFile(root, 'eightfold.skin.json'))
+  if (skin.id !== id) {
+    throw new Error(`armoury: installed skin id ${JSON.stringify(skin.id)} does not match ${JSON.stringify(id)}`)
+  }
+  const theme = themeManifestSchema.parse(await readJsonFile(root, skin.entry))
+  if (theme.id !== id) {
+    throw new Error(`armoury: theme id ${JSON.stringify(theme.id)} does not match ${JSON.stringify(id)}`)
+  }
+
+  const colors = colorTokenFileSchema.parse(
+    await readJsonFile(root, theme.tokens.colors),
+  ).colors
+  const typography = typographyTokenFileSchema.parse(
+    await readJsonFile(root, theme.tokens.typography),
+  ).typography
+  const tokens: Record<string, string> = {}
+  for (const [name, value] of Object.entries(colors)) {
+    const variable = ARMOURY_COLOR_VARIABLES[name]
+    if (variable !== undefined) tokens[variable] = value
+  }
+  const fontFamily = typography.fontFamily
+  if (fontFamily?.sans !== undefined) tokens[ARMOURY_FONT_VARIABLES.sans] = fontFamily.sans
+  if (fontFamily?.mono !== undefined) tokens[ARMOURY_FONT_VARIABLES.mono] = fontFamily.mono
+  if (Object.keys(tokens).length === 0) {
+    throw new Error(`armoury: installed skin ${JSON.stringify(id)} contains no Harness theme tokens`)
+  }
+
+  return {
+    id: skin.id,
+    name: skin.name,
+    version: skin.version,
+    colorScheme: theme.mode,
+    tokens,
+  }
 }
 
 async function installSkin(home: string, id: string, descriptor: ArmourySkinDescriptor): Promise<{

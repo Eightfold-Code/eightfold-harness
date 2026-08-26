@@ -45,6 +45,7 @@ export interface RpcMethodMap {
   'host.openPath': HostApi['openPath']
   'host.eightfoldCatalog': HostApi['eightfoldCatalog']
   'host.eightfoldInstall': HostApi['eightfoldInstall']
+  'host.eightfoldTheme': HostApi['eightfoldTheme']
   'workspace.list': WorkspaceApi['list']
   'workspace.create': WorkspaceApi['create']
   'workspace.rename': WorkspaceApi['rename']

@@ -110,7 +110,7 @@ import {
   inspectApiRemoteSession,
 } from '@deepseek-ai/dsh-api-remotes'
 import { canOpenNativePath, openNativePath, openNativeTextFile } from './native-path-opener.ts'
-import { installEightfoldItem, readEightfoldCatalog } from './eightfold-market.ts'
+import { installEightfoldItem, readEightfoldCatalog, readEightfoldTheme } from './eightfold-market.ts'
 
 /** Page size when history is called without maxMessages. */
 const DEFAULT_MAX_MESSAGES = 50
@@ -2928,6 +2928,19 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
           return err(request, {
             code: 'internal',
             message: `failed to install Eightfold ${kind} item ${JSON.stringify(id)}: ${error instanceof Error ? error.message : String(error)}`,
+            details: {},
+          })
+        }
+      },
+
+      async eightfoldTheme(request) {
+        const { id } = request.payload
+        try {
+          return ok(request, await readEightfoldTheme(id))
+        } catch (error: unknown) {
+          return err(request, {
+            code: 'internal',
+            message: `failed to read installed Eightfold theme ${JSON.stringify(id)}: ${error instanceof Error ? error.message : String(error)}`,
             details: {},
           })
         }

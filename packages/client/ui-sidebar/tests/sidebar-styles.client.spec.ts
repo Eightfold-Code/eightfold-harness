@@ -58,6 +58,12 @@ describe('SidebarRoot.module.css', () => {
     expect(css).toMatch(/@keyframes rail-fade-in\s*\{\s*from\s*\{\s*opacity: 0;\s*}\s*}/)
   })
 
+  it('stacks footer actions as one vertical rail above Settings', () => {
+    expect(declarations('.footerActions')?.get('flex-direction')).toBe('column')
+    expect(declarations('.footerActions')?.get('gap')).toBe('2px')
+    expect(declarations('.collapsed .footerActions')?.get('align-items')).toBe('center')
+  })
+
   it('gives shell rail controls the same base anchor for their shared translation', () => {
     expect(declarations('.collapsed .logoRow')?.get('justify-content')).toBe('flex-start')
     expect(declarations('.collapsed .newSession')?.get('align-self')).toBe('flex-start')

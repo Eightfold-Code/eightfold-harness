@@ -120,3 +120,17 @@ export const hostEightfoldInstallValueSchema = z.object({
   version: z.string().min(1),
   commit: z.string().regex(/^[0-9a-f]{40}$/),
 }) satisfies z.ZodType<Wire<ResponseValue<'host.eightfoldInstall'>>>
+
+/** host.eightfoldTheme request payload. */
+export const hostEightfoldThemeRequestSchema = z.object({
+  id: z.string().min(1),
+}) satisfies z.ZodType<Wire<RequestPayload<'host.eightfoldTheme'>>>
+
+/** host.eightfoldTheme response value. */
+export const hostEightfoldThemeValueSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  version: z.string().min(1),
+  colorScheme: z.union([z.literal('light'), z.literal('dark')]),
+  tokens: z.record(z.string(), z.string()),
+}) satisfies z.ZodType<Wire<ResponseValue<'host.eightfoldTheme'>>>

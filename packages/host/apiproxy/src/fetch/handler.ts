@@ -32,6 +32,7 @@ import {
 import {
   hostCreateDirectoryRequestSchema, hostDescribeRequestSchema,
   hostEightfoldCatalogRequestSchema, hostEightfoldInstallRequestSchema,
+  hostEightfoldThemeRequestSchema,
   hostListDirectoryRequestSchema, hostOpenPathRequestSchema,
   hostPickDirectoryRequestSchema,
 } from '../api/host.schema.ts'
@@ -112,6 +113,7 @@ const UNARY_ROUTES: UnaryRoutes = {
   'host.openPath': { schema: hostOpenPathRequestSchema, invoke: (api, r, signal) => api.host.openPath(r, signal) },
   'host.eightfoldCatalog': { schema: hostEightfoldCatalogRequestSchema, invoke: (api, r) => api.host.eightfoldCatalog(r) },
   'host.eightfoldInstall': { schema: hostEightfoldInstallRequestSchema, invoke: (api, r) => api.host.eightfoldInstall(r) },
+  'host.eightfoldTheme': { schema: hostEightfoldThemeRequestSchema, invoke: (api, r) => api.host.eightfoldTheme(r) },
   'workspace.list': { schema: workspaceListRequestSchema, invoke: (api, r) => api.workspace.list(r) },
   'workspace.create': { schema: workspaceCreateRequestSchema, invoke: (api, r) => api.workspace.create(r) },
   'workspace.rename': { schema: workspaceRenameRequestSchema, invoke: (api, r) => api.workspace.rename(r) },

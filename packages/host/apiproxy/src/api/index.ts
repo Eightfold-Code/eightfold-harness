@@ -49,7 +49,7 @@ export type {
 } from './sessions.ts'
 export type {
   DirectoryEntry, DirectoryListing, EightfoldCatalogItem, EightfoldCatalogKind,
-  EightfoldInstallReceipt, HostApi,
+  EightfoldInstallReceipt, EightfoldTheme, HostApi,
 } from './host.ts'
 export type {
   SubagentAddress, SubagentCatalog, SubagentInterruptReceipt, SubagentListEntry,

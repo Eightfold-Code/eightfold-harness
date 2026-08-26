@@ -130,7 +130,8 @@
 
 .closeButton,
 .refreshButton,
-.installButton {
+.installButton,
+.themeButton {
   border: 1px solid var(--dsw-alias-border-l2);
   background: transparent;
   color: var(--dsw-alias-label-primary);
@@ -153,7 +154,8 @@
 
 .closeButton:hover,
 .refreshButton:hover:not(:disabled),
-.installButton:hover:not(:disabled) {
+.installButton:hover:not(:disabled),
+.themeButton:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
@@ -196,7 +198,8 @@
 }
 
 .refreshButton:disabled,
-.installButton:disabled {
+.installButton:disabled,
+.themeButton:disabled {
   cursor: default;
   opacity: 0.55;
 }
@@ -355,12 +358,26 @@
 }
 
 .cardActions {
+  align-items: flex-end;
   justify-content: space-between;
   margin-top: 2px;
 }
 
+.actionButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.themeButton {
+  border-color: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-brand-primary);
+}
+
 .source {
   min-width: 0;
+  flex: 1;
   overflow: hidden;
   color: var(--dsw-alias-label-caption);
   font-family: var(--dsh-font-mono, monospace);

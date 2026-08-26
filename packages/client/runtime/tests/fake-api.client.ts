@@ -192,6 +192,18 @@ export class FakeApiClient implements IApiClient {
         commit: '0000000000000000000000000000000000000000',
       })))
     },
+    eightfoldTheme: (payload: unknown) => {
+      const id = typeof payload === 'object' && payload !== null && 'id' in payload && typeof payload.id === 'string'
+        ? payload.id
+        : 'fixture'
+      return this.record('host.eightfoldTheme', payload, Promise.resolve(ok({
+        id,
+        name: 'Fixture theme',
+        version: '0-test',
+        colorScheme: 'dark' as const,
+        tokens: {},
+      })))
+    },
   }
 
   // The archive-set field defaults at the binding below so list stubs keep

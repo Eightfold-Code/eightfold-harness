@@ -153,6 +153,13 @@ export class FakeApiClient implements IApiClient {
       version: '0-test',
       commit: '0000000000000000000000000000000000000000',
     }))),
+    eightfoldTheme: payload => this.record('host.eightfoldTheme', payload, Promise.resolve(ok({
+      id: payload.id,
+      name: 'Fixture theme',
+      version: '0-test',
+      colorScheme: 'dark' as const,
+      tokens: {},
+    }))),
   }
 
   readonly workspace: IApiClient['workspace'] = {

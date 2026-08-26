@@ -7,6 +7,7 @@ import { GeneralSection } from '../src/client/GeneralSection.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.tsx'
 import type { TriggerContentProps } from '../src/client/chrome.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
+import { EightfoldMarketplace } from '../src/client/EightfoldMarketplace.tsx'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { SettingsDocumentStore } from '../src/client/settings-document-store.ts'
 
@@ -156,5 +157,67 @@ describe('SettingsDocumentAction', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Open configuration file' }))
     expect((await screen.findByRole('alert')).textContent).toBe('Could not open configuration file')
     expect(screen.getByRole('button', { name: 'Open configuration file' })).toBeTruthy()
+  })
+})
+
+describe('EightfoldMarketplace', () => {
+  it('shows Set as theme after an Armoury skin is installed', async () => {
+    const card = (installed: boolean) => ({
+      id: 'obsidian',
+      kind: 'armoury' as const,
+      name: 'Obsidian',
+      description: 'A test skin',
+      version: '0.1.0',
+      repository: 'Eightfold-Code/eightfold-armoury',
+      branch: 'skin/obsidian',
+      commit: '0000000000000000000000000000000000000000',
+      tags: [],
+      installed,
+      updateAvailable: false,
+    })
+    const catalog = vi.fn()
+      .mockResolvedValueOnce({
+        rpcId: 'catalog-1' as never,
+        result: { ok: true as const, value: { items: [card(false)] } },
+      })
+      .mockResolvedValue({
+        rpcId: 'catalog-2' as never,
+        result: { ok: true as const, value: { items: [card(true)] } },
+      })
+    const install = vi.fn(() => Promise.resolve({
+      rpcId: 'install-1' as never,
+      result: {
+        ok: true as const,
+        value: {
+          id: 'obsidian',
+          version: '0.1.0',
+          commit: '0000000000000000000000000000000000000000',
+        },
+      },
+    }))
+    const setAsTheme = vi.fn(() => Promise.resolve())
+    const getActiveThemeId = vi.fn(() => 'system')
+    render(<EightfoldMarketplace
+      {...kit}
+      wide
+      t={t as never}
+      connection={{
+        api: { host: { eightfoldCatalog: catalog, eightfoldInstall: install } },
+        isLoopback: true,
+      } as never}
+      kind="armoury"
+      setAsTheme={setAsTheme}
+      getActiveThemeId={getActiveThemeId}
+    />)
+    fireEvent.click(screen.getByRole('button', { name: 'Armoury' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Install' }))
+    await waitFor(() => {
+      expect(install).toHaveBeenCalledWith({ kind: 'armoury', id: 'obsidian' })
+    })
+    const themeButton = await screen.findByRole('button', { name: 'Set as theme' })
+    fireEvent.click(themeButton)
+    await waitFor(() => {
+      expect(setAsTheme).toHaveBeenCalledWith('obsidian')
+    })
   })
 })
