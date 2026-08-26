@@ -14,6 +14,8 @@ import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 // merge. Cross-plugin collaboration goes through the service, never a value
 // import (client bundle purity gate).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+// Type-only: the sidebar footer-action declaration used by Armoury/Treasury.
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 // Type-only: pulls ctx.locale into this program.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {
@@ -25,6 +27,8 @@ import { GeneralSection } from './GeneralSection.tsx'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
 import { SettingsDocumentStore } from './settings-document-store.ts'
+import { EightfoldMarketplace } from './EightfoldMarketplace.tsx'
+import type { EightfoldMarketplaceInjected } from './EightfoldMarketplace.tsx'
 import { en, zh, type SettingsKey } from './locales.ts'
 
 export type {
@@ -34,18 +38,19 @@ export type {
   GeneralSectionComponentProps,
 } from './GeneralSection.tsx'
 export type { SettingsDocumentActionInjected, SettingsDocumentActionProps } from './SettingsDocumentAction.tsx'
+export type { EightfoldMarketplaceInjected, EightfoldMarketplaceProps } from './EightfoldMarketplace.tsx'
 export type { SettingsDocumentState } from './settings-document-store.ts'
 export { SettingsDocumentStore } from './settings-document-store.ts'
 export type { SettingsKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Shell chrome + shell-owned General section copy. */
+    /** Shell chrome + shell-owned General section and Eightfold catalog copy. */
     settings: SettingsKey
   }
 }
 
-/** Dictionary namespace owned by this plugin (shell chrome + General copy). */
+/** Dictionary namespace owned by this plugin (shell chrome + General + marketplaces). */
 const NS = 'settings'
 
 /**
@@ -68,6 +73,34 @@ export function apply(ctx: ClientContext): void {
   // locale/change re-registration wiring.
   const t = ctx.locale.bind(NS)
   const connection = ctx.get('connection') as ConnectionHandle
+
+  // Armoury and Treasury deliberately occupy the generic sidebar-footer slot,
+  // which SidebarRoot renders immediately above Settings. The Host pins both
+  // RPCs to loopback, so remote/LAN clients do not advertise controls they
+  // cannot safely use.
+  if (connection.isLoopback) {
+    ctx.slots.inject('sidebar.footer.action', function* () {
+      const market = (kind: 'armoury' | 'treasury'): EightfoldMarketplaceInjected => ({
+        connection,
+        kind,
+      })
+      yield ctx.slots.register({
+        name: 'sidebar.footer.action',
+        id: 'eightfold-armoury',
+        order: -20,
+        locale: NS,
+        inject: () => market('armoury'),
+      }, EightfoldMarketplace)
+      yield ctx.slots.register({
+        name: 'sidebar.footer.action',
+        id: 'eightfold-treasury',
+        order: -10,
+        locale: NS,
+        inject: () => market('treasury'),
+      }, EightfoldMarketplace)
+    })
+  }
+
   // The action follows the shared describe mirror, whose owning plugin
   // already refreshes it on document commits and reconnects.
   const documentController = connection.isLoopback
