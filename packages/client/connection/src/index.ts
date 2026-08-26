@@ -82,6 +82,10 @@ export const Config: z<ConnectionConfig> = z.object({
  * LAN caller would have a probe for whatever the host can reach and the
  * browser cannot.
  *
+ * The Eightfold catalog/install methods are also pinned: catalog reads expose
+ * local installation state and trigger Host-side GitHub reads, while install
+ * writes branch snapshots into the local `.eightfold` tree.
+ *
  * The model catalog (`llm.providers`, `llm.models`) is deliberately NOT here:
  * it carries provider ids, display names, and model lists — no endpoints,
  * keys, or key state — and a LAN client's model picker legitimately needs it.
@@ -107,6 +111,8 @@ const PRIVILEGED_METHODS = new Set([
   'agentPreset.remove',
   'host.pickDirectory',
   'host.openPath',
+  'host.eightfoldCatalog',
+  'host.eightfoldInstall',
   'settings.describe',
   'settings.openDocument',
   'settings.update',
