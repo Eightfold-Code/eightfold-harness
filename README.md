@@ -1,56 +1,37 @@
 # Eightfold Harness
 
-**A modular agent runtime built to adapt.**
+**The runtime for composable, adaptable AI systems.**
 
-Eightfold Harness is a fork of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) that keeps its plugin-first architecture and adds a lightweight distribution layer for discovering and installing capabilities on demand.
+Eightfold Harness is a plugin-first agent runtime based on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and [Cordis](https://github.com/cordiverse/cordis). It keeps the native Harness lifecycle and adds the Eightfold model for discovering, installing, and composing replaceable capabilities.
 
-At the core of the project is a simple idea: **everything is a module**. Runtime behavior, tools, interfaces, and higher-level capabilities are composed through the existing [Cordis](https://github.com/cordiverse/cordis) plugin system rather than being permanently baked into one monolithic agent.
+> Eightfold is in developer preview. APIs, commands, manifests, and repository structure may change.
 
-Eightfold adds **Treasury** on top of that model: a registry of installable adaptations that can be fetched independently, pinned to exact commits, validated, and managed locally.
+## The Eightfold model
 
-> Eightfold is currently a developer preview. APIs, commands, manifests, and repository structure may change while the distribution model is being stabilized.
+| Project | Role | Owns |
+| --- | --- | --- |
+| [Harness](https://github.com/Eightfold-Code/eightfold-harness) | Runtime | Sessions, profiles, lifecycle, and plugin composition |
+| [Treasury](https://github.com/Eightfold-Code/eightfold-treasury) | Capability catalog | Installable adaptations and named bundles |
+| [Armoury](https://github.com/Eightfold-Code/eightfold-armoury) | Visual catalog | Presentation-only skins and themes |
 
-## The model
+Harness is the engine. Treasury supplies capabilities. Armoury supplies visual presentation.
 
-```text
-┌──────────────────────┐
-│  Eightfold Treasury  │
-│  registry + bundles  │
-└──────────┬───────────┘
-           │ discover / install
-           ▼
-┌──────────────────────┐
-│  Eightfold Harness   │
-│  runtime + profiles  │
-└──────────┬───────────┘
-           │ compose
-           ▼
-┌──────────────────────┐
-│ Cordis plugin graph  │
-│ tools · UI · agents  │
-└──────────────────────┘
-```
+## What Harness provides
 
-### Harness
+- A plugin graph built on the Cordis lifecycle.
+- Composable profiles for web, terminal, headless, and other surfaces.
+- Runtime services for sessions, tools, models, filesystems, shells, subagents, and workflows.
+- A native installation path for adaptations published by Treasury.
+- Independent skin selection through Armoury.
 
-The runtime. Harness boots named profiles built from ordered plugin-bundle layers and user overrides.
-
-### Treasury
-
-The distribution layer. [Eightfold Treasury](https://github.com/Eightfold-Code/eightfold-treasury) publishes a machine-readable registry of adaptations and named bundles. Harness can discover, download, validate, update, and remove those adaptations without cloning the entire Treasury repository.
-
-### Adaptations
-
-Small, independently distributed capability packages. Each published adaptation has its own source snapshot, manifest, compatibility metadata, and recorded permissions.
-
-Treasury installation and Harness profile activation are intentionally separate in the current preview. Installing an adaptation does not silently rewrite an existing profile.
+Eightfold extends the existing Harness architecture instead of creating a parallel plugin runtime.
 
 ## Quick start
 
 ### Requirements
 
 - Node.js `^22.19.0` or `>=24.0.0`
-- pnpm 11 (the repository pins its package-manager version)
+- pnpm 11
 
 ### Run from source
 
@@ -65,89 +46,89 @@ pnpm dsh web
 
 The Web UI starts at `http://127.0.0.1:3080` by default.
 
-To launch another profile:
+Run another profile with:
 
 ```bash
 pnpm dsh --profile tui
 pnpm dsh --profile headless "inspect this repository"
 ```
 
-## Treasury commands
+## Install capabilities
 
-List the adaptations currently published by Treasury:
+Discover and install adaptations through Treasury:
 
 ```bash
 pnpm dsh eightfold treasury list
-```
-
-Search the registry:
-
-```bash
 pnpm dsh eightfold treasury search session
-```
-
-Install an adaptation:
-
-```bash
 pnpm dsh eightfold add session-search
 ```
 
-Inspect or install a named bundle:
+Install a named bundle:
 
 ```bash
 pnpm dsh eightfold bundle list
 pnpm dsh eightfold bundle add developer
 ```
 
-Update one adaptation, or every installed adaptation:
+Update or remove an installed adaptation:
 
 ```bash
 pnpm dsh eightfold update session-search
-pnpm dsh eightfold update
-```
-
-Remove an adaptation:
-
-```bash
 pnpm dsh eightfold remove session-search
 ```
 
-By default, Eightfold stores Treasury-managed state in `.eightfold/` under the current working directory. Set `EIGHTFOLD_HOME` to use a different location. A custom registry endpoint can be supplied through `EIGHTFOLD_TREASURY_URL`.
+Installing an adaptation does not silently rewrite an existing profile. Profile activation remains explicit.
 
-## Profiles and plugins
+## Select a skin
 
-Harness profiles are composable configuration stacks. Existing profile plugins continue to be managed through the native plugin command:
+Choose a presentation layer independently from capabilities:
 
 ```bash
-pnpm dsh plugin --profile tui add <package>
-pnpm dsh plugin --profile tui remove <package>
+pnpm dsh eightfold armoury list
+pnpm dsh eightfold armoury search dark
+pnpm dsh eightfold skin add obsidian
+pnpm dsh eightfold skin use obsidian
 ```
 
-This keeps Eightfold compatible with the underlying Harness/Cordis lifecycle rather than introducing a second runtime or package system.
+A profile can combine both selections:
 
-## Why Eightfold?
+```json
+{
+  "adaptations": ["session-search", "developer-tools"],
+  "skin": "obsidian"
+}
+```
 
-- **Composable by default** — capabilities are modules rather than permanent runtime features.
-- **Install only what you need** — Treasury adaptations are fetched independently.
-- **Reproducible sources** — published adaptations can be pinned to exact Git commits.
-- **Small distribution surface** — installing one adaptation does not require cloning an entire plugin repository.
-- **Native Harness lifecycle** — Eightfold extends the existing profile and Cordis architecture instead of replacing it.
+## Reproducible installs
+
+Treasury and Armoury registry entries resolve published packages to exact Git commits. Harness validates the manifest, compatibility metadata, archive paths, and declared permissions before it records an installation.
+
+By default, Eightfold stores managed state in `.eightfold/` in the current working directory. Set `EIGHTFOLD_HOME` to use another location. Set `EIGHTFOLD_TREASURY_URL` to use a different registry endpoint.
 
 ## Development
 
-The project still inherits much of DeepSeek Harness's package structure and `@deepseek-ai/*` internal package naming while the Eightfold-specific layer is being developed.
+The repository retains the upstream package structure and `@deepseek-ai/*` package naming while the Eightfold layer evolves.
 
 Useful references:
 
+- [Architecture](docs/architecture.md)
 - [Development guide](docs/development.md)
-- [Architecture documentation](docs/architecture.md)
 - [Contributing](CONTRIBUTING.md)
 - [Agent instructions](AGENTS.md)
 - [Eightfold Treasury](https://github.com/Eightfold-Code/eightfold-treasury)
+- [Eightfold Armoury](https://github.com/Eightfold-Code/eightfold-armoury)
+
+## Design principles
+
+- **Modular by default** — runtime behavior is composed from replaceable modules.
+- **Native over parallel** — use the existing Harness and Cordis lifecycle.
+- **Reproducible** — published sources resolve to exact commits.
+- **Inspectable** — manifests and permissions describe what gets installed.
+- **Composable** — profiles combine capabilities and presentation independently.
 
 ## Upstream
 
-Eightfold Harness is based on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). We preserve upstream attribution and intend to keep the relationship explicit as Eightfold evolves its own distribution and adaptation layer.
+Eightfold Harness is based on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Upstream attribution remains explicit as Eightfold develops its own distribution model.
 
 ## License
 
