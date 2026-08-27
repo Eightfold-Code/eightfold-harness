@@ -19,7 +19,7 @@ function declarations(selector: string): Map<string, string> | undefined {
     for (const part of body.split(';')) {
       const colon = part.indexOf(':')
       if (colon === -1) continue
-      found.set(part.slice(0, colon).trim(), part.slice(colon + 1).trim().replace(/\s+/g, ' '))
+      const key = part.slice(0, colon).trim()\n      if (!found.has(key)) found.set(key, part.slice(colon + 1).trim().replace(/\s+/g, ' '))
     }
   }
   return found
