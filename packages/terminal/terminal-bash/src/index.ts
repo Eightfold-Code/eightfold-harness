@@ -128,6 +128,17 @@ async function startupSession(
     // bound, so the wait loops over follow-up sends until the controlled
     // prompt is actually visible (in the viewport or the retained scrollback
     // when it landed between sends), bounded by the send deadline.
+    // Let the interactive host produce its initial output before submitting
+    // the prompt definition. Otherwise PSReadLine can merely echo the setup
+    // text while it is still initializing.
+    const initial = await session.startSend({
+      text: '',
+      submit: false,
+      ...signal !== undefined ? { signal } : {},
+    }).done
+    if (initial.waitReason === 'session_exit') throw new Error('PTY shell exited during startup')
+    if (initial.waitReason === 'timeout') throw new Error('PTY shell did not reach readiness before startup timeout')
+
     let viewport = ''
     for (;;) {
       const first = viewport.length === 0
