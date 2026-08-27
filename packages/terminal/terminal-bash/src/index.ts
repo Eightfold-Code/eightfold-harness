@@ -124,11 +124,11 @@ async function startupSession(
     // prompt is actually visible (in the viewport or the retained scrollback
     // when it landed between sends), bounded by the send deadline.
     let viewport = ''
+    let bootstrap = true
     for (;;) {
-      const first = viewport.length === 0
       const operation = session.startSend({
-        text: first ? ENCODING_PREAMBLE + PWSH_PROMPT_SETUP : '',
-        submit: first,
+        text: bootstrap ? ENCODING_PREAMBLE + PWSH_PROMPT_SETUP : '',
+        submit: bootstrap,
         ...signal !== undefined ? { signal } : {},
       })
       const result = await operation.done
@@ -137,7 +137,15 @@ async function startupSession(
       viewport = result.viewport
       const scrollback = session.read({ offset: 0, count: 20 }).text
       if (viewport.includes(CONTROLLED_PROMPT) || scrollback.includes(CONTROLLED_PROMPT)) break
+      // The bootstrap command itself may settle from the provider's initial
+      // idle probe before pwsh renders its first prompt. Once it has been
+      // sent, every following wait must observe that owned prompt.
+      if (bootstrap) {
+        session.requirePwshPromptReadiness()
+        bootstrap = false
+      }
     }
+    session.requirePwshPromptReadiness()
     session.motd = viewport
   }
   if (signal === undefined) {
