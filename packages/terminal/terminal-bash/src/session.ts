@@ -86,6 +86,7 @@ class LocalSendOperation implements TerminalSendOperation {
     maxBytes: number,
     readonly startedAt: number,
     private readonly onCancel: () => void,
+    readonly submitted: boolean,
   ) {
     this.output = new BoundedTextBuffer(maxBytes)
     this.promise = Promise.withResolvers<TerminalSendResult>()
@@ -240,6 +241,7 @@ export class LocalPtySession implements TerminalBackendSession {
       this.config.maxReadBytes,
       Date.now(),
       () => { this.interrupt(operation) },
+      request.submit,
     )
     this.active = operation
     this.resetReadinessEvidence()
@@ -492,7 +494,8 @@ export class LocalPtySession implements TerminalBackendSession {
     } else {
       this.clearActive()
     }
-    if (this.config.shellDialect === 'pwsh' && waitReason !== 'timeout' && waitReason !== 'session_exit') {
+    if (this.config.shellDialect === 'pwsh' && operation.submitted
+      && waitReason !== 'timeout' && waitReason !== 'session_exit') {
       this.pwshBootstrapSettled = true
     }
     operation.settle(waitReason, this.statusValue, scrollbackTruncated)
