@@ -448,6 +448,11 @@ export class LocalPtySession implements TerminalBackendSession {
         this.settleActive('stdin_read')
         return
       }
+      // PowerShell keeps background input machinery alive while evaluating a
+      // command, so process-level stdin-wait and silence probes can report
+      // readiness after the echoed input but before command output. Its owned
+      // prompt marker above is the authoritative completion boundary.
+      if (this.config.shellDialect === 'pwsh') return
       const elapsed = Date.now() - operation.startedAt
       const startupHasOutput = !this.initializing || this.scrollback.snapshot().text.length > 0
       const acceptsStdinWait = startupHasOutput && foreground !== undefined
