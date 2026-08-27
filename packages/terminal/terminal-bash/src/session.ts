@@ -179,7 +179,7 @@ export class LocalPtySession implements TerminalBackendSession {
   private promptTextSeen = false
   private promptTail = ''
   private shellPgid: number | undefined
-  private pwshPromptRequired = false
+  private pwshBootstrapSettled = false
   private initializing = false
   private lastOutputAt = Date.now()
   private closing = false
@@ -221,11 +221,6 @@ export class LocalPtySession implements TerminalBackendSession {
     } finally {
       this.initializing = false
     }
-  }
-
-  /** Require the owned PowerShell prompt before later sends can settle. */
-  requirePwshPromptReadiness(): void {
-    this.pwshPromptRequired = true
   }
 
   startSend(request: TerminalSendRequest): TerminalSendOperation {
@@ -458,7 +453,7 @@ export class LocalPtySession implements TerminalBackendSession {
       // command, so process-level stdin-wait and silence probes can report
       // readiness after the echoed input but before command output. Its owned
       // prompt marker above is the authoritative completion boundary.
-      if (this.config.shellDialect === 'pwsh' && this.pwshPromptRequired) return
+      if (this.config.shellDialect === 'pwsh' && this.pwshBootstrapSettled) return
       const elapsed = Date.now() - operation.startedAt
       const startupHasOutput = !this.initializing || this.scrollback.snapshot().text.length > 0
       const acceptsStdinWait = startupHasOutput && foreground !== undefined
@@ -496,6 +491,9 @@ export class LocalPtySession implements TerminalBackendSession {
       this.activeAbort = undefined
     } else {
       this.clearActive()
+    }
+    if (this.config.shellDialect === 'pwsh' && waitReason !== 'timeout' && waitReason !== 'session_exit') {
+      this.pwshBootstrapSettled = true
     }
     operation.settle(waitReason, this.statusValue, scrollbackTruncated)
   }
