@@ -48,9 +48,26 @@ jobs:
         run: pnpm run typecheck
         timeout-minutes: 15
 
-      - name: Test
-        run: pnpm run test
+      # PTY-backed PowerShell tests use a real interactive process. Running
+      # them alongside the whole suite races their short startup window on
+      # shared GitHub runners, producing intermittent readiness timeouts.
+      # Keep the normal suite parallel, then run this small integration slice
+      # in one worker so it remains a required, meaningful check.
+      - name: Test (unit and integration)
+        run: >-
+          pnpm run test --
+          --exclude packages/terminal/terminal-bash/tests/local.spec.ts
+          --exclude packages/shell/tool-pwsh-persistent/tests/loader-composition.spec.ts
         timeout-minutes: 30
+
+      - name: Test (real PTY shells)
+        run: >-
+          pnpm exec vitest run
+          packages/terminal/terminal-bash/tests/local.spec.ts
+          packages/shell/tool-pwsh-persistent/tests/loader-composition.spec.ts
+          --maxWorkers=1
+          --fileParallelism=false
+        timeout-minutes: 15
 
       - name: Build
         run: pnpm run build
