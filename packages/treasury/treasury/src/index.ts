@@ -52,3 +52,8 @@ export {
   type InstalledSource,
   type InstalledState,
 } from './installer.ts'
+export {
+  decompressTarGz,
+  parseTarArchive,
+  type TarEntry,
+} from './tar.ts'

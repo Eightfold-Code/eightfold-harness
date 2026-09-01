@@ -9,11 +9,15 @@
  */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ThemeDefinition, ThemeRuntime } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: the settings slot declarations plus the ctx.settingsScope Context
 // merge. Cross-plugin collaboration goes through the service, never a value
 // import (client bundle purity gate).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+// Type-only: pulls ctx.theme and the ThemeRuntime contract for Armoury activation.
+// Type-only: the sidebar footer-action declaration used by Armoury/Treasury.
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 // Type-only: pulls ctx.locale into this program.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {
@@ -25,6 +29,8 @@ import { GeneralSection } from './GeneralSection.tsx'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
 import { SettingsDocumentStore } from './settings-document-store.ts'
+import { EightfoldMarketplace } from './EightfoldMarketplace.tsx'
+import type { EightfoldMarketplaceInjected } from './EightfoldMarketplace.tsx'
 import { en, zh, type SettingsKey } from './locales.ts'
 
 export type {
@@ -34,19 +40,56 @@ export type {
   GeneralSectionComponentProps,
 } from './GeneralSection.tsx'
 export type { SettingsDocumentActionInjected, SettingsDocumentActionProps } from './SettingsDocumentAction.tsx'
+export type { EightfoldMarketplaceInjected, EightfoldMarketplaceProps } from './EightfoldMarketplace.tsx'
 export type { SettingsDocumentState } from './settings-document-store.ts'
 export { SettingsDocumentStore } from './settings-document-store.ts'
 export type { SettingsKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Shell chrome + shell-owned General section copy. */
+    /** Shell chrome + shell-owned General section and Eightfold catalog copy. */
     settings: SettingsKey
   }
 }
 
-/** Dictionary namespace owned by this plugin (shell chrome + General copy). */
+/** Dictionary namespace owned by this plugin (shell chrome + General + marketplaces). */
 const NS = 'settings'
+
+function isBuiltInTheme(id: string): boolean {
+  return id === 'light' || id === 'dark' || id === 'system'
+}
+
+function createThemeActivator(connection: ConnectionHandle, theme: ThemeRuntime): {
+  setAsTheme: (id: string) => Promise<void>
+  getActiveThemeId: () => string
+} {
+  const registrations = new Map<string, { version: string; dispose: () => void }>()
+  const setAsTheme = async (id: string): Promise<void> => {
+    const response = await connection.api.host.eightfoldTheme({ id })
+    if (!response.result.ok) throw new Error(response.result.error.message)
+    const installed = response.result.value
+    const registered = registrations.get(installed.id)
+    const inRegistry = theme.getTheme().themes.some(candidate => candidate.id === installed.id)
+    if (registered?.version === installed.version && inRegistry) {
+      theme.setTheme(installed.id)
+      return
+    }
+    registered?.dispose()
+    if (!theme.getTheme().themes.some(candidate => candidate.id === installed.id)) {
+      const dispose = theme.register({
+        id: installed.id,
+        colorScheme: installed.colorScheme,
+        tokens: installed.tokens,
+      } satisfies ThemeDefinition)
+      registrations.set(installed.id, { version: installed.version, dispose })
+    }
+    theme.setTheme(installed.id)
+  }
+  return {
+    setAsTheme,
+    getActiveThemeId: () => theme.getTheme().preference,
+  }
+}
 
 /**
  * Required services (cordis fiber inject). The target slots are declared by
@@ -68,6 +111,49 @@ export function apply(ctx: ClientContext): void {
   // locale/change re-registration wiring.
   const t = ctx.locale.bind(NS)
   const connection = ctx.get('connection') as ConnectionHandle
+  const theme = ctx.get('theme', false)
+
+  // Armoury and Treasury deliberately occupy the generic sidebar-footer slot,
+  // which SidebarRoot renders immediately above Settings. The Host pins both
+  // RPCs to loopback, so remote/LAN clients do not advertise controls they
+  // cannot safely use.
+  if (connection.isLoopback) {
+    ctx.slots.inject('sidebar.footer.action', function* () {
+      const activator = theme === undefined ? undefined : createThemeActivator(connection, theme)
+      const market = (kind: 'armoury' | 'treasury'): EightfoldMarketplaceInjected => {
+        if (activator === undefined) return { connection, kind }
+        return {
+          connection,
+          kind,
+          setAsTheme: activator.setAsTheme,
+          getActiveThemeId: activator.getActiveThemeId,
+        }
+      }
+      yield ctx.slots.register({
+        name: 'sidebar.footer.action',
+        id: 'eightfold-armoury',
+        order: -20,
+        locale: NS,
+        inject: () => market('armoury'),
+      }, EightfoldMarketplace)
+      yield ctx.slots.register({
+        name: 'sidebar.footer.action',
+        id: 'eightfold-treasury',
+        order: -10,
+        locale: NS,
+        inject: () => market('treasury'),
+      }, EightfoldMarketplace)
+      if (activator !== undefined) {
+        const persisted = activator.getActiveThemeId()
+        if (!isBuiltInTheme(persisted)) {
+          void activator.setAsTheme(persisted).catch((error: unknown) => {
+            console.warn('[eightfold marketplace] could not restore theme:', error)
+          })
+        }
+      }
+    })
+  }
+
   // The action follows the shared describe mirror, whose owning plugin
   // already refreshes it on document commits and reconnects.
   const documentController = connection.isLoopback

@@ -86,8 +86,13 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
  * build the control bytes at runtime because raw ESC characters in submitted
  * input are unreliable under PSReadLine.
  */
+const PWSH_CONTROLLED_PROMPT = Array.from(CONTROLLED_PROMPT)
+  .map(char => `[char]${char.charCodeAt(0)}`)
+  .join(' + ')
+
+/** The setup command deliberately does not contain the printable prompt text. */
 export const PWSH_PROMPT_SETUP =
-  "function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); '" + CONTROLLED_PROMPT + "' }"
+  "function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); " + PWSH_CONTROLLED_PROMPT + ' }'
 
 function spawnArgv(ctx: Context, config: ResolvedConfig, policy: SandboxExecutionPolicy): string[] {
   const argv = [config.shellPath, ...config.shellArgs]
@@ -123,6 +128,17 @@ async function startupSession(
     // bound, so the wait loops over follow-up sends until the controlled
     // prompt is actually visible (in the viewport or the retained scrollback
     // when it landed between sends), bounded by the send deadline.
+    // Let the interactive host produce its initial output before submitting
+    // the prompt definition. Otherwise PSReadLine can merely echo the setup
+    // text while it is still initializing.
+    const initial = await session.startSend({
+      text: '',
+      submit: false,
+      ...signal !== undefined ? { signal } : {},
+    }).done
+    if (initial.waitReason === 'session_exit') throw new Error('PTY shell exited during startup')
+    if (initial.waitReason === 'timeout') throw new Error('PTY shell did not reach readiness before startup timeout')
+
     let viewport = ''
     for (;;) {
       const first = viewport.length === 0

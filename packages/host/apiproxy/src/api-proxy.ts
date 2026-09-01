@@ -110,6 +110,7 @@ import {
   inspectApiRemoteSession,
 } from '@deepseek-ai/dsh-api-remotes'
 import { canOpenNativePath, openNativePath, openNativeTextFile } from './native-path-opener.ts'
+import { installEightfoldItem, readEightfoldCatalog, readEightfoldTheme } from './eightfold-market.ts'
 
 /** Page size when history is called without maxMessages. */
 const DEFAULT_MAX_MESSAGES = 50
@@ -2903,6 +2904,45 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
           return ok(request, { path: await capability.createDirectory(request.payload.path, request.payload.name) })
         } catch (error: unknown) {
           return err(request, directoryError(error))
+        }
+      },
+
+      async eightfoldCatalog(request) {
+        const { kind } = request.payload
+        try {
+          return ok(request, { items: await readEightfoldCatalog(kind) })
+        } catch (error: unknown) {
+          return err(request, {
+            code: 'internal',
+            message: `failed to read Eightfold ${kind} catalog: ${error instanceof Error ? error.message : String(error)}`,
+            details: {},
+          })
+        }
+      },
+
+      async eightfoldInstall(request) {
+        const { kind, id } = request.payload
+        try {
+          return ok(request, await installEightfoldItem(kind, id))
+        } catch (error: unknown) {
+          return err(request, {
+            code: 'internal',
+            message: `failed to install Eightfold ${kind} item ${JSON.stringify(id)}: ${error instanceof Error ? error.message : String(error)}`,
+            details: {},
+          })
+        }
+      },
+
+      async eightfoldTheme(request) {
+        const { id } = request.payload
+        try {
+          return ok(request, await readEightfoldTheme(id))
+        } catch (error: unknown) {
+          return err(request, {
+            code: 'internal',
+            message: `failed to read installed Eightfold theme ${JSON.stringify(id)}: ${error instanceof Error ? error.message : String(error)}`,
+            details: {},
+          })
         }
       },
 

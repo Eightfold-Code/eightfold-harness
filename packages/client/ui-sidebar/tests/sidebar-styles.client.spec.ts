@@ -12,17 +12,18 @@ const css = readFileSync(fileURLToPath(new URL('../src/client/SidebarRoot.module
  */
 function declarations(selector: string): Map<string, string> | undefined {
   const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, ' ')
+  let found: Map<string, string> | undefined
   for (const [, selectorList = '', body = ''] of withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     if (!selectorList.split(',').map(value => value.trim()).includes(selector)) continue
-    const found = new Map<string, string>()
+    found ??= new Map()
     for (const part of body.split(';')) {
       const colon = part.indexOf(':')
       if (colon === -1) continue
-      found.set(part.slice(0, colon).trim(), part.slice(colon + 1).trim().replace(/\s+/g, ' '))
+      const key = part.slice(0, colon).trim()
+      if (!found.has(key)) found.set(key, part.slice(colon + 1).trim().replace(/\s+/g, ' '))
     }
-    return found
   }
-  return undefined
+  return found
 }
 
 describe('SidebarRoot.module.css', () => {
@@ -56,6 +57,12 @@ describe('SidebarRoot.module.css', () => {
       /@keyframes rail-in\s*\{\s*from\s*\{\s*opacity: 0;\s*transform: translateX\(49px\);\s*}\s*}/,
     )
     expect(css).toMatch(/@keyframes rail-fade-in\s*\{\s*from\s*\{\s*opacity: 0;\s*}\s*}/)
+  })
+
+  it('stacks footer actions as one vertical rail above Settings', () => {
+    expect(declarations('.footerActions')?.get('flex-direction')).toBe('column')
+    expect(declarations('.footerActions')?.get('gap')).toBe('2px')
+    expect(declarations('.collapsed .footerActions')?.get('align-items')).toBe('center')
   })
 
   it('gives shell rail controls the same base anchor for their shared translation', () => {

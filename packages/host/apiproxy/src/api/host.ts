@@ -32,6 +32,42 @@ export interface DirectoryListing {
   truncated: boolean
 }
 
+/** Which Eightfold branch-backed catalog the browser is reading. */
+export type EightfoldCatalogKind = 'treasury' | 'armoury'
+
+/** One Obsidian-style card rendered by the Eightfold marketplace UI. */
+export interface EightfoldCatalogItem {
+  id: string
+  kind: EightfoldCatalogKind
+  name: string
+  description: string
+  version: string
+  repository: string
+  branch: string
+  commit: string
+  tags: string[]
+  coverUrl?: string
+  installed: boolean
+  updateAvailable: boolean
+  installedVersion?: string
+}
+
+/** Result of installing or updating one catalog item. */
+export interface EightfoldInstallReceipt {
+  id: string
+  version: string
+  commit: string
+}
+
+/** One installed Armoury theme resolved into Harness CSS custom-property tokens. */
+export interface EightfoldTheme {
+  id: string
+  name: string
+  version: string
+  colorScheme: 'light' | 'dark'
+  tokens: Record<string, string>
+}
+
 /** Host-level unary methods. */
 export interface HostApi {
   /**
@@ -95,4 +131,29 @@ export interface HostApi {
     request: RpcRequest<{ path: string }>,
     signal: AbortSignal,
   ): Promise<RpcResponse<{ opened: true }>>
+
+  /**
+   * Read one Eightfold catalog. Only registry-published entries that opt into
+   * the UI with a valid branch-root `eightfold.market.json` are returned.
+   */
+  eightfoldCatalog(
+    request: RpcRequest<{ kind: EightfoldCatalogKind }>,
+  ): Promise<RpcResponse<{ items: EightfoldCatalogItem[] }>>
+
+  /**
+   * Install or update one registry-owned Treasury adaptation or Armoury skin.
+   * The browser supplies only kind + id; repository/ref authority is resolved
+   * by the Host from Eightfold's registries.
+   */
+  eightfoldInstall(
+    request: RpcRequest<{ kind: EightfoldCatalogKind; id: string }>,
+  ): Promise<RpcResponse<EightfoldInstallReceipt>>
+
+  /**
+   * Read one installed Armoury theme so the browser can register and activate
+   * its presentation tokens. The Host remains the filesystem authority.
+   */
+  eightfoldTheme(
+    request: RpcRequest<{ id: string }>,
+  ): Promise<RpcResponse<EightfoldTheme>>
 }

@@ -147,6 +147,19 @@ export class FakeApiClient implements IApiClient {
     listDirectory: payload => this.record('host.listDirectory', payload, this.onListDirectory(payload)),
     createDirectory: payload => this.record('host.createDirectory', payload, this.onCreateDirectory(payload)),
     openPath: payload => this.record('host.openPath', payload, this.onOpenPath(payload)),
+    eightfoldCatalog: payload => this.record('host.eightfoldCatalog', payload, Promise.resolve(ok({ items: [] }))),
+    eightfoldInstall: payload => this.record('host.eightfoldInstall', payload, Promise.resolve(ok({
+      id: payload.id,
+      version: '0-test',
+      commit: '0000000000000000000000000000000000000000',
+    }))),
+    eightfoldTheme: payload => this.record('host.eightfoldTheme', payload, Promise.resolve(ok({
+      id: payload.id,
+      name: 'Fixture theme',
+      version: '0-test',
+      colorScheme: 'dark' as const,
+      tokens: {},
+    }))),
   }
 
   readonly workspace: IApiClient['workspace'] = {

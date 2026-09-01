@@ -86,6 +86,7 @@ class LocalSendOperation implements TerminalSendOperation {
     maxBytes: number,
     readonly startedAt: number,
     private readonly onCancel: () => void,
+    readonly submitted: boolean,
   ) {
     this.output = new BoundedTextBuffer(maxBytes)
     this.promise = Promise.withResolvers<TerminalSendResult>()
@@ -179,6 +180,7 @@ export class LocalPtySession implements TerminalBackendSession {
   private promptTextSeen = false
   private promptTail = ''
   private shellPgid: number | undefined
+  private pwshBootstrapSettled = false
   private initializing = false
   private lastOutputAt = Date.now()
   private closing = false
@@ -239,6 +241,7 @@ export class LocalPtySession implements TerminalBackendSession {
       this.config.maxReadBytes,
       Date.now(),
       () => { this.interrupt(operation) },
+      request.submit,
     )
     this.active = operation
     this.resetReadinessEvidence()
@@ -448,6 +451,11 @@ export class LocalPtySession implements TerminalBackendSession {
         this.settleActive('stdin_read')
         return
       }
+      // PowerShell keeps background input machinery alive while evaluating a
+      // command, so process-level stdin-wait and silence probes can report
+      // readiness after the echoed input but before command output. Its owned
+      // prompt marker above is the authoritative completion boundary.
+      if (this.config.shellDialect === 'pwsh' && this.pwshBootstrapSettled) return
       const elapsed = Date.now() - operation.startedAt
       const startupHasOutput = !this.initializing || this.scrollback.snapshot().text.length > 0
       const acceptsStdinWait = startupHasOutput && foreground !== undefined
@@ -485,6 +493,10 @@ export class LocalPtySession implements TerminalBackendSession {
       this.activeAbort = undefined
     } else {
       this.clearActive()
+    }
+    if (this.config.shellDialect === 'pwsh' && operation.submitted
+      && waitReason !== 'timeout' && waitReason !== 'session_exit') {
+      this.pwshBootstrapSettled = true
     }
     operation.settle(waitReason, this.statusValue, scrollbackTruncated)
   }

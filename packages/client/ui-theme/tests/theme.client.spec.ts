@@ -81,13 +81,22 @@ describe('ThemeRuntime', () => {
     dispose()
     expect(theme.getTheme().preference).toBe('system')
     expect(theme.getTheme().themes.map(t => t.id)).toEqual(['light', 'dark'])
-    // Custom ids are in-process extension themes; only the built-in product
-    // preferences cross the Host settings schema.
-    expect(host.set).not.toHaveBeenCalled()
+    expect(host.set).toHaveBeenNthCalledWith(1, 'preference', 'sepia')
+    expect(host.set).toHaveBeenNthCalledWith(2, 'preference', 'system')
     // register + set + dispose = three publishes; disposer is idempotent.
     expect(events.length).toBe(3)
     dispose()
     expect(events.length).toBe(3)
+  })
+
+  it('keeps a persisted extension preference pending until its definition is registered', () => {
+    const host = stubSettingsScope<ThemeSettings>()
+    host.publish({ status: 'ready', value: { preference: 'obsidian' }, revision: 1, writable: true })
+    const { theme } = make(host)
+    expect(theme.getTheme().preference).toBe('obsidian')
+    expect(theme.getTheme().active.id).toBe('light')
+    theme.register({ id: 'obsidian', colorScheme: 'dark', tokens: { '--dsw-alias-bg-base': '#000' } })
+    expect(theme.getTheme().active.id).toBe('obsidian')
   })
 
   it('disposing an inactive theme keeps the active preference', () => {

@@ -1,0 +1,164 @@
+name: Marketplace build repair
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+env:
+  DSH_TELEMETRY_DISABLED: '1'
+
+jobs:
+  repair:
+    if: github.head_ref == 'feature/armoury-treasury-marketplace'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.7.0'
+          dest: ${{ runner.temp }}/setup-pnpm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Apply marketplace build fixes
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def insert_before_in_block(text: str, block_start: str, block_end: str, marker: str, addition: str) -> str:
+              start = text.index(block_start)
+              end = text.index(block_end, start)
+              block = text[start:end]
+              if addition.strip().splitlines()[0].strip() in block:
+                  return text
+              position = block.index(marker)
+              block = block[:position] + addition + block[position:]
+              return text[:start] + block + text[end:]
+
+          api_proxy = Path('packages/host/apiproxy/src/api-proxy.ts')
+          text = api_proxy.read_text()
+          import_line = "import { installEightfoldItem, readEightfoldCatalog } from './eightfold-market.ts'\n"
+          import_anchor = "import { canOpenNativePath, openNativePath, openNativeTextFile } from './native-path-opener.ts'\n"
+          has_marketplace_import = any(
+              'installEightfoldItem' in line
+              and 'readEightfoldCatalog' in line
+              and 'eightfold-market.ts' in line
+              for line in text.splitlines()
+          )
+          if not has_marketplace_import:
+              if text.count(import_anchor) != 1:
+                  raise SystemExit('api-proxy import anchor changed')
+              text = text.replace(import_anchor, import_anchor + import_line, 1)
+
+          handlers = """      async eightfoldCatalog(request) {
+                try {
+                  return ok(request, { items: await readEightfoldCatalog(request.payload.kind) })
+                } catch (error: unknown) {
+                  return err(request, {
+                    code: 'internal',
+                    message: `eightfold ${request.payload.kind} catalog failed: ${error instanceof Error ? error.message : String(error)}`,
+                    details: {},
+                  })
+                }
+              },
+
+              async eightfoldInstall(request) {
+                try {
+                  return ok(request, await installEightfoldItem(request.payload.kind, request.payload.id))
+                } catch (error: unknown) {
+                  return err(request, {
+                    code: 'internal',
+                    message: `eightfold ${request.payload.kind} install failed: ${error instanceof Error ? error.message : String(error)}`,
+                    details: {},
+                  })
+                }
+              },
+
+          """
+          text = insert_before_in_block(
+              text,
+              '\n    host: {',
+              '\n    goals: {',
+              '      async openPath(request, signal) {',
+              handlers,
+          )
+          api_proxy.write_text(text)
+
+          client_handler = Path('packages/host/apiproxy/tests/client-handler.spec.ts')
+          text = client_handler.read_text()
+          client_methods = """      eightfoldCatalog: r => ok(r, { items: [] }),
+              eightfoldInstall: r => ok(r, {
+                id: r.payload.id,
+                version: '0-test',
+                commit: '0000000000000000000000000000000000000000',
+              }),
+          """
+          text = insert_before_in_block(
+              text,
+              '\n    host: {',
+              '\n    workspace: {',
+              '      openPath: r => ok(r, { opened: true as const }),',
+              client_methods,
+          )
+          client_handler.write_text(text)
+
+          fetch_carrier = Path('packages/host/apiproxy/tests/fetch-carrier.spec.ts')
+          text = fetch_carrier.read_text()
+          fetch_methods = """      async eightfoldCatalog(request) {
+                return { rpcId: request.rpcId, result: { ok: true, value: { items: [] } } }
+              },
+              async eightfoldInstall(request) {
+                return {
+                  rpcId: request.rpcId,
+                  result: {
+                    ok: true,
+                    value: {
+                      id: request.payload.id,
+                      version: '0-test',
+                      commit: '0000000000000000000000000000000000000000',
+                    },
+                  },
+                }
+              },
+          """
+          text = insert_before_in_block(
+              text,
+              '\n    host: {',
+              '\n    workspace: {',
+              '      async openPath(request) {',
+              fetch_methods,
+          )
+          fetch_carrier.write_text(text)
+          PY
+
+      - name: Install and refresh lockfile
+        run: pnpm install --no-frozen-lockfile
+        timeout-minutes: 15
+
+      - name: Build
+        run: pnpm run build
+        timeout-minutes: 15
+
+      - name: Commit repair
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/host/apiproxy/src/api-proxy.ts \
+            packages/host/apiproxy/tests/client-handler.spec.ts \
+            packages/host/apiproxy/tests/fetch-carrier.spec.ts \
+            pnpm-lock.yaml
+          git commit -m "fix: repair marketplace build wiring"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
