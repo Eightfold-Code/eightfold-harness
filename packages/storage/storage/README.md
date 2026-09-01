@@ -87,7 +87,6 @@ The hub is a pure registration table with two faces, designed so backends and da
 | [`src/backend.ts`](src/backend.ts) | The backend contract: facets, units, `UNIT_NAME_RE` |
 | [`src/error.ts`](src/error.ts) | `StorageError` codes shared by the hub and every backend |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion (no runtime invariant: a pure registration table) |
-| [`tests/contract.ts`](tests/contract.ts) | The shared conformance suite run against each backend |
 
 </details>
 

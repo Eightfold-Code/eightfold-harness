@@ -76,3 +76,5 @@ minimumReleaseAgeExclude:
 
 patchedDependencies:
   node-pty@1.2.0-beta.15: patches/node-pty@1.2.0-beta.15.patch
+
+fetchTimeout: 600000

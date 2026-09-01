@@ -44,7 +44,7 @@ interface StorageBackend {
 }
 ```
 
-一个后端拥有一个介质（一棵文件树的根目录、一个数据库文件），并提供可选的操作组；`kv` 是唯一已交付的操作组。`KvFacet.open(descriptor)` 打开一个具名 unit——`KvUnitDescriptor` 携带名称、格式版本、表名清单，以及是否存在全局单例 slot——并返回提供 `loadAll`、`putRecord`、`deleteRecord`、`setGlobal` 和 `close` 的 `KvUnit`。unit 名与表名必须匹配 `UNIT_NAME_RE`（既可安全用作文件名，也可安全用作 SQL 标识符片段）；记录键是任意字符串，绝不进入文件路径。unit 不对并发写入做串行化——顺序由调用方负责——但每次单独调用在介质上都是原子的，且 resolve 后即已持久。介质上记录的版本与之不同时拒绝 `version-mismatch`；无法按该 unit 解析的介质拒绝 `malformed-medium`（不做迁移：预发布立场）。[`backend.ts`](../../packages/storage/storage/src/backend.ts) 是逐条款的规范性约定，[`tests/contract.ts`](../../packages/storage/storage/tests/contract.ts) 中的共享一致性套件会针对每个后端检查每项条款。[json 后端](../../packages/storage/storage-json/README.zh.md)以原子方式为每个 unit 整文件重新发布一份人类可读文件；[sqlite 后端](../../packages/storage/storage-sqlite/README.zh.md)在单个数据库中每行存储一份文档，用于频繁更新的数据。
+一个后端拥有一个介质（一棵文件树的根目录、一个数据库文件），并提供可选的操作组；`kv` 是唯一已交付的操作组。`KvFacet.open(descriptor)` 打开一个具名 unit——`KvUnitDescriptor` 携带名称、格式版本、表名清单，以及是否存在全局单例 slot——并返回提供 `loadAll`、`putRecord`、`deleteRecord`、`setGlobal` 和 `close` 的 `KvUnit`。unit 名与表名必须匹配 `UNIT_NAME_RE`（既可安全用作文件名，也可安全用作 SQL 标识符片段）；记录键是任意字符串，绝不进入文件路径。unit 不对并发写入做串行化——顺序由调用方负责——但每次单独调用在介质上都是原子的，且 resolve 后即已持久。介质上记录的版本与之不同时拒绝 `version-mismatch`；无法按该 unit 解析的介质拒绝 `malformed-medium`（不做迁移：预发布立场）。[`backend.ts`](../../packages/storage/storage/src/backend.ts) 是逐条款的规范性约定。[json 后端](../../packages/storage/storage-json/README.zh.md)以原子方式为每个 unit 整文件重新发布一份人类可读文件；[sqlite 后端](../../packages/storage/storage-sqlite/README.zh.md)在单个数据库中每行存储一份文档，用于频繁更新的数据。
 
 ## 声明领域
 
@@ -103,11 +103,11 @@ interface Domain<S extends DomainSpec> {
 }
 ```
 
-读取是同步的，来自权威的内存态：`KvTable` 暴露 `get`/`entries`/`keys`/`size`（快照迭代器，在排队写入落地期间保持稳定），global 句柄的 `get()` 在第一次 `set` 将 slot 物化到介质之前一直返回 spec 的 `initial`。每次写入——`put`、`delete`、`update`、`global.set`——都在同一条逐领域写链上排队，先在后端完成持久化，再更新内存，最后发出 `domain/changed`；后端写入被拒时内存原样不动，因此读取绝不会偏离介质。`update(key, fn)` 在其写链 slot 上是一次原子的读-改-写（键缺失时拒绝 `missing-key`）；`delete` 一个不存在的键 resolve 为 `false`，不产生写入也不产生事件。返回的记录就是存储的对象本身，不是副本——请经 `put`/`update` 整体替换，绝不要就地修改。
+读取是同步的，来自权威的内存态：`KvTable` 暴露 `get`/`entries`/`keys`/`size`（快照迭代器，在排队写入落地期间保持稳定），global 句柄的 `get` 在第一次 `set` 将 slot 物化到介质之前一直返回 spec 的 `initial`。每次写入——`put`、`delete`、`update`、`global.set`——都在同一条逐领域写链上排队，先在后端完成持久化，再更新内存，最后发出 `domain/changed`；后端写入被拒时内存原样不动，因此读取绝不会偏离介质。`update(key, fn)` 在其写链 slot 上是一次原子的读-改-写（键缺失时拒绝 `missing-key`）；`delete` 一个不存在的键 resolve 为 `false`，不产生写入也不产生事件。返回的记录就是存储的对象本身，不是副本——请经 `put`/`update` 整体替换，绝不要就地修改。
 
 ## 领域 facility：`ctx.storageDomain`
 
-`DomainFacility`（[签名](#ctxstoragedomain--domainfacility)）在经过路由的后端之上打开已声明的领域。路由是领域插件的配置，绝不属于枢纽：`backend` 指定必填的默认路由，`routes` 按领域名逐个覆盖。`open(spec)` 按严格顺序执行，每一步失败都使整个调用失败：拒绝已打开或仍在关闭中的名称（`already-open`），解析路由（`backend-not-found`），要求后端具备 `kv` facet（`facet-unsupported`），打开 unit（后端的 `version-mismatch`/`malformed-medium` 原样透传），并按 spec 的 zod schema 校验每条已存储记录和 global（`invalid-record`，附带出错的表与键）。调用方拥有返回的句柄，并用 `Domain.close()` 释放它；插件卸载时仍处于打开状态的领域由 facility 负责关闭，已关闭领域的名称只有在拆除完全结束后才释放出来供重新打开。`get(name)` 是无类型的诊断查找，命中的是每个类型化句柄背后包内私有的 `DomainImpl` 运行时；`closeAll()` 是卸载路径。
+`DomainFacility`（[签名](#ctxstoragedomain--domainfacility)）在经过路由的后端之上打开已声明的领域。路由是领域插件的配置，绝不属于枢纽：`backend` 指定必填的默认路由，`routes` 按领域名逐个覆盖。`open(spec)` 按严格顺序执行，每一步失败都使整个调用失败：拒绝已打开或仍在关闭中的名称（`already-open`），解析路由（`backend-not-found`），要求后端具备 `kv` facet（`facet-unsupported`），打开 unit（后端的 `version-mismatch`/`malformed-medium` 原样透传），并按 spec 的 zod schema 校验每条已存储记录和 global（`invalid-record`，附带出错的表与键）。调用方拥有返回的句柄，并用 `Domain.close` 释放它；插件卸载时仍处于打开状态的领域由 facility 负责关闭，已关闭领域的名称只有在拆除完全结束后才释放出来供重新打开。`get(name)` 是无类型的诊断查找，命中的是每个类型化句柄背后包内私有的 `DomainImpl` 运行时；`closeAll` 是卸载路径。
 
 ## 变更事件：`domain/changed`
 
@@ -183,7 +183,7 @@ The mounted domain facility. Opens declared domains over routed backends; one fa
  * with the offending table and key); construct the domain.
  *
  * Lifecycle: the CALLER owns the returned handle and closes it via
- * `Domain.close()` (typically as its own `ctx.effect` disposer) — the
+ * `Domain.close` (typically as its own `ctx.effect` disposer) — the
  * facility does not tie the domain to any consumer fiber. Domains still
  * open when the facility unmounts are closed by the plugin disposer.
  * @param spec - The domain declaration, typically from `defineDomain`.
@@ -202,11 +202,11 @@ get(name: string): DomainImpl | undefined
 
 /**
  * Close every domain still open on this facility. The unmount path for
- * consumers that never called `Domain.close()` themselves; closing is
+ * consumers that never called `Domain.close` themselves; closing is
  * idempotent, so double-closing an already-closed domain is harmless.
  * @returns resolution after every unit is released.
  */
-async closeAll(): Promise<void>
+async closeAll: Promise<void>
 ```
 
 Source: [`packages/storage/storage-domain/src/index.ts`](../../packages/storage/storage-domain/src/index.ts)

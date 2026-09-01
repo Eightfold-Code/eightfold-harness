@@ -63,7 +63,6 @@ The deque stores entries in a circular array. Removing an entry clears that slot
 |---|---|
 | [`src/index.ts`](src/index.ts) | Circular deque operations and backing-storage lifecycle |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion (no runtime invariant; ordering and storage lifecycle are exercised by unit tests) |
-| [`tests/deque.spec.ts`](tests/deque.spec.ts) | FIFO, front insertion, wrapping, growth, compaction, clearing, and reuse coverage |
 | [`benchmarks/drain.ts`](benchmarks/drain.ts) | Reproducible backlog-drain timing across increasing queue sizes |
 
 </details>

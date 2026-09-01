@@ -70,7 +70,7 @@ defineAcpSnapshotSuite({
 
 每个已记录会话目录携带封闭的 `snapshot.yml` manifest，以及自身的 `session.jsonl` 与连续的 `session.<n>.jsonl` 子会话日志。manifest 指名场景、随附 profile、组合／header 类别、录制来源，以及已完成会话无法重建的 replay、平台、权限、环境、workspace 或输入事实。适配器注册预期输出、会话日志与可选 `workspace.expected/` 比较；保护会拒绝遗留目录、缺失文件、绝对路径、畸形 manifest 与平台专用分隔符。
 
-`normalizeSessionSnapshot` 在规范化路径并清理 request header 后，会保留完整会话 header 与事件 payload，但从已提交 fixture 中省略普通行的 `seq`/`time` 和打包行的 `seq0`/`time0` envelope。回放只在内存中合成这些 envelope，而运行时持久化仍写入完整日志。fixture 使用规范打包行；[临时仓库迁移器](../../../scripts/migrate-packed-session-fixtures.ts)（`pnpm run migrate:packed-session-fixtures`）会改写较旧的布局，由其[移除提案](../../../.agents/notes/proposed/process/2026-07-26-remove-packed-session-fixture-migrator.zh.md)负责删除该迁移器。
+`normalizeSessionSnapshot` 在规范化路径并清理 request header 后，会保留完整会话 header 与事件 payload，但从已提交 fixture 中省略普通行的 `seq`/`time` 和打包行的 `seq0`/`time0` envelope。回放只在内存中合成这些 envelope，而运行时持久化仍写入完整日志。fixture 使用规范打包行。
 
 ### 录制、回放与刷新
 

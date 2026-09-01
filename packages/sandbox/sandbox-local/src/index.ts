@@ -225,8 +225,7 @@ const WINDOWS_ACL_RUNNER_FAILURE_EXIT = 127
  * so a confined command that merely PRINTS the signature (or a runner
  * cleanup failure reported on a non-zero child exit) is never misclassified
  * as "the command did not run". Keep the Landlock tuple aligned with the
- * assembled snapshot fixture at
- * `packages/test-support/session-snapshot/tests/fixtures/partial-landlock-sandbox.ts`.
+ * assembled snapshot fixture.
  */
 const RUNNER_FAILURE_RULES = {
   bwrap: [{ fatalSignatures: ['bwrap: '] }],

@@ -195,8 +195,9 @@ export function findViolations(
 }
 
 if (process.argv[1] && import.meta.filename === resolve(process.argv[1])) {
-  // Archived notes remain valid link targets, but their historical outbound links are frozen.
-  const files = uniqueRepoFiles(root, PATTERNS, isArchivedAgentNotePath)
+  // Agent notes (implemented/proposed/archived) are historical records whose
+  // outbound links to files as they existed are frozen, not maintained.
+  const files = uniqueRepoFiles(root, PATTERNS, p => isArchivedAgentNotePath(p) || p.startsWith('.agents/notes/'))
   const anchorsOf = anchorCache()
   const all = files.flatMap(file => findViolations(file.abs, anchorsOf))
   const checked = files.length

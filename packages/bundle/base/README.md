@@ -82,7 +82,6 @@ The patch gates the two shell stacks by platform on its own rows: `bash-sandbox`
 | [`cordis.patch.yml`](cordis.patch.yml) | The bundle substance: the base plugin rows, with per-row rationale as inline comments |
 | [`src/index.ts`](src/index.ts) | Package entry; carries no runtime API |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion: no runtime invariant; each inserted row's package owns its invariants |
-| [`tests/base.spec.ts`](tests/base.spec.ts) | Manifest declaration and platform-gating checks |
 
 ### Invariant ownership
 

@@ -91,10 +91,6 @@ The URL line and browser handoff are readiness signals: supervisors RPC as soon 
 | [`src/startup.ts`](src/startup.ts) | The `web-startup` provider: `--host`, `--port`, `--trusted-host`, `--no-open`, `--help` |
 | [`cordis.patch.yml`](cordis.patch.yml) | The web patch: restated base values, web host rows, browser roster, agent plane behind presets |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion: no runtime invariant; every contribution is registry-disposed |
-| [`tests/web-app.spec.ts`](tests/web-app.spec.ts) | Dist resolution, fallback seat, prompt sections, readiness |
-| [`tests/startup.spec.ts`](tests/startup.spec.ts) | Command-line parsing over a real Loader tree |
-| [`tests/trusted-hosts.spec.ts`](tests/trusted-hosts.spec.ts) | LAN-trust sampling |
-| [`tests/browser-open.spec.ts`](tests/browser-open.spec.ts) | Default-browser handoff after the page is reachable |
 
 ### Invariant ownership
 

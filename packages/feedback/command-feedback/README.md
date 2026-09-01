@@ -144,7 +144,7 @@ These limits define where `/feedback` is a poor fit or behaves differently than 
 
 This Dev Note is working context for maintainers; it is explicitly non-authoritative. Shipped behavior, limits, and rationale live in the sections above and the package code.
 
-- The acknowledgement sentences are pinned by [`tests/command-feedback.spec.ts`](tests/command-feedback.spec.ts); changing them changes user-visible copy and the disclosure tests.
+- The acknowledgement sentences are pinned by the command-feedback suite; changing them changes user-visible copy.
 - Structured fields and a retrieval surface remain the open direction behind the first two limitations; nothing in the current contract reserves a format for them.
 
 </details>

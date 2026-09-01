@@ -91,10 +91,6 @@ URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发�
 | [`src/startup.ts`](src/startup.ts) | `web-startup` 提供方：`--host`、`--port`、`--trusted-host`、`--no-open`、`--help` |
 | [`cordis.patch.yml`](cordis.patch.yml) | Web patch：重述的基础值、Web 宿主行、浏览器名录、preset 之后的 agent 层 |
 | [`src/invariant.ts`](src/invariant.ts) | 不变式伴生插件：无运行时不变式；每项贡献都由 registry 释放 |
-| [`tests/web-app.spec.ts`](tests/web-app.spec.ts) | dist 解析、fallback 席位、提示词段落、就绪宣告 |
-| [`tests/startup.spec.ts`](tests/startup.spec.ts) | 在真实 Loader 树上的命令行解析 |
-| [`tests/trusted-hosts.spec.ts`](tests/trusted-hosts.spec.ts) | LAN 信任采样 |
-| [`tests/browser-open.spec.ts`](tests/browser-open.spec.ts) | 页面可达后的默认浏览器交接 |
 
 ### 不变式归属
 

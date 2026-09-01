@@ -72,7 +72,6 @@ host 侧校验会静默丢弃垃圾，因此格式错误或伪造的帧绝不会
 | [`src/index.ts`](src/index.ts) | 插件入口：为每个 wire 消费方重新导出协议词汇 |
 | [`src/protocol.ts`](src/protocol.ts) | host 侧：帧编解码、敌意帧校验器、无损 JSON 计量器、共享标记文本 |
 | [`py/protocol.py`](py/protocol.py) | Python 侧：`PROTOCOL_FD`、`TypedDict` 帧镜像、`log_truncation_marker` |
-| [`tests/protocol-mirror.e2e.ts`](tests/protocol-mirror.e2e.ts) | 对照真实 `python3` 的跨语言镜像测试 |
 | [`src/invariant.ts`](src/invariant.ts) | 不变式伴生插件（无运行时不变式；本包不注册任何可变数据关系） |
 
 </details>

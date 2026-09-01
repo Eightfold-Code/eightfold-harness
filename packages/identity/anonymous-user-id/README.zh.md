@@ -74,8 +74,6 @@ const userId = getOrCreateAnonymousUserId() // stable for the process lifetime
 |---|---|
 | [`src/index.ts`](src/index.ts) | 库入口：`getOrCreateAnonymousUserId`、文件持久化、按路径记忆化 |
 | [`src/invariant.ts`](src/invariant.ts) | 带空安装器的不变式伴生插件（无运行时不变式；唯一的关系是私有的且带副作用） |
-| [`tests/anonymous-user-id.spec.ts`](tests/anonymous-user-id.spec.ts) | 已演练行为：生成、持久化、损坏、并发、记忆化 |
-| [`tests/invariant.spec.ts`](tests/invariant.spec.ts) | 通过 invariants 服务注册伴生插件 |
 
 ### API
 

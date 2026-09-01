@@ -82,7 +82,6 @@ patch 在自身上按平台门控两个 shell 栈：`bash-sandbox` 与 `tool-bas
 | [`cordis.patch.yml`](cordis.patch.yml) | 组合包的实体：基础插件行，附以行内注释说明各行依据 |
 | [`src/index.ts`](src/index.ts) | 包入口；不携带任何运行时 API |
 | [`src/invariant.ts`](src/invariant.ts) | 不变式伴生插件：无运行时不变式；每条插入行所属的包负责自己的不变式 |
-| [`tests/base.spec.ts`](tests/base.spec.ts) | manifest 声明与平台门控检查 |
 
 ### 不变式归属
 

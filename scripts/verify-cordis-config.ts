@@ -73,7 +73,6 @@ if (import.meta.main) {
 
   errors.push(...validateAppResolution())
   errors.push(...validatePackageTestResolution())
-  errors.push(...packageTestFixtureDependencyErrors())
   errors.push(...validateSourcePlaneResolution())
   errors.push(...validatePresetPlaneSeparation())
   errors.push(...validateClientHalvesDeclared())

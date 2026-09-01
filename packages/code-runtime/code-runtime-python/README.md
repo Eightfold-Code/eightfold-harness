@@ -72,7 +72,6 @@ Completion values and binding arguments cross as exact JSON: values serialize wi
 | [`src/index.ts`](src/index.ts) | Plugin entry: re-exports the protocol vocabulary for every consumer of the wire |
 | [`src/protocol.ts`](src/protocol.ts) | Host side: frame codec, hostile-frame validators, lossless-JSON meters, shared marker text |
 | [`py/protocol.py`](py/protocol.py) | Python side: `PROTOCOL_FD`, `TypedDict` frame mirrors, `log_truncation_marker` |
-| [`tests/protocol-mirror.e2e.ts`](tests/protocol-mirror.e2e.ts) | Cross-language mirror test against a real `python3` |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion (no runtime invariant; the package registers no mutable data relation) |
 
 </details>

@@ -144,7 +144,7 @@ Web 客户端随附该命令。无头模式、ACP 自动化和 JSON-RPC 不提�
 
 本开发备注是维护者的工作上下文，明确不具权威性。已交付的行为、限制与理由以上文与包代码为准。
 
-- 确认文本句子由 [`tests/command-feedback.spec.ts`](tests/command-feedback.spec.ts) 固定；修改它们会改变用户可见文案与披露测试。
+- 确认文本句子由 command-feedback 套件固定；修改它们会改变用户可见文案。
 - 结构化字段与检索 surface 仍是前两条限制背后的开放方向；当前约定没有为它们预留任何格式。
 
 </details>

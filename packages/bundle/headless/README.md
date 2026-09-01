@@ -79,8 +79,6 @@ A completed final `turn/end` exits 0; any other outcome — aborted, error, or n
 | [`src/startup.ts`](src/startup.ts) | The `headless-startup` provider: task positional and `--help` |
 | [`cordis.patch.yml`](cordis.patch.yml) | The one-shot patch over `dsh-base` |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion: no runtime invariant; the observable contract is process-level |
-| [`tests/headless.spec.ts`](tests/headless.spec.ts) | Run flow, aggregation, flush, and exit mapping |
-| [`tests/startup.spec.ts`](tests/startup.spec.ts) | Command-line parsing over a real Loader tree |
 
 ### Invariant ownership
 

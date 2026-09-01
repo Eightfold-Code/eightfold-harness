@@ -105,12 +105,20 @@ export function resolveEightfoldHome(env: Record<string, string | undefined> = p
   return resolve(selected)
 }
 
-/** The directory under the Treasury home that holds extracted adaptations. */
+/**
+ * The directory under the Treasury home that holds extracted adaptations.
+ * @param home - the Treasury home directory.
+ * @returns the adaptations directory path.
+ */
 export function adaptationsDirectory(home: string): string {
   return join(home, 'adaptations')
 }
 
-/** The file under the Treasury home that records installed adaptations. */
+/**
+ * The file under the Treasury home that records installed adaptations.
+ * @param home - the Treasury home directory.
+ * @returns the installed-state file path.
+ */
 export function installedStatePath(home: string): string {
   return join(home, 'installed.json')
 }

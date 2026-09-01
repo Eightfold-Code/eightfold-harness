@@ -6,14 +6,14 @@
 
 ## 层级
 
-- **单元测试**（`pnpm run test`）：vitest 运行包和示例各自的 `tests/**` 目录下的测试，以及匹配 `scripts/**/*.spec.ts` 的仓库脚本测试；测试文件与其所覆盖的代码区域放在一起。每个注册表都有一个 HMR（热模块替换）安全测试（对向该注册表贡献内容的 fiber 执行 dispose（资源释放），并断言清理完成）。优先覆盖边界情况、错误路径、事件顺序、并发竞态，以及针对约定回归的永久测试（见 `packages/core/agent-loop/tests/contract-regressions.spec.ts`）。
+- **单元测试**（`pnpm run test`）：vitest 运行包和示例各自的 `tests/**` 目录下的测试，以及匹配 `scripts/**/*.spec.ts` 的仓库脚本测试；测试文件与其所覆盖的代码区域放在一起。每个注册表都有一个 HMR（热模块替换）安全测试（对向该注册表贡献内容的 fiber 执行 dispose（资源释放），并断言清理完成）。优先覆盖边界情况、错误路径、事件顺序、并发竞态，以及针对约定回归的永久测试（见 ``）。
 - **覆盖率门禁**（`pnpm run test:coverage`）：门禁级运行，对 `packages/*/*/src` 按文件 100% 覆盖。未覆盖的行往往是门禁正确标记出的死代码（应删除），而非需要补写的测试。行覆盖率是必要条件，但永远不是充分条件：它证明行被执行过，不证明功能按交付预期工作。`packages/shell/pwsh-local/src` 的按文件 100% 覆盖需要真实的 `pwsh`：缺少它时其执行器套件会自动跳过，`vitest.config.ts` 会豁免该文件以使无 pwsh 的主机保持绿色，而 CI runner 自带 pwsh，仍按完整标准执行门禁。
 - **真实 API e2e**（`pnpm run test:e2e`）：带密钥测试调用真实提供方 API，包括 DeepSeek 模型以及各提供方特有的冒烟测试；这些测试各自由自己的密钥控制（`EXA_API_KEY`、`PERPLEXITY_API_KEY` 等），缺少密钥时套件会自动跳过，使 keyless CI 保持绿色（[真实 API e2e Agent Note](../.agents/notes/implemented/testing/2026-06-19-real-api-e2e-ci.zh.md)）。
 - **所属位置的预期输出**（`pnpm run test:expected`）：无录制会话往返的无密钥组装 CLI/进程预期。驱动使用 `*.expected.e2e.ts`，并与 `tests/expected/` 同属一处；CI 针对构建产物运行。包/脚本预期使用 `test`，浏览器预期使用 `test:web`。
 - **快照**（`pnpm run test:snapshot`）：顶层场景的录制 `session.jsonl` 同时提供用户输入和模型回放，并作为持久化结果的预期值。进程级场景都通过 `dsh` 启动：headless 负责一次性行为，SDK 负责持久控制，ACP 负责自动化协议行为，Web 在同一会话旁保留浏览器与 ARIA 证据。`snapshot.yml` 声明 profile、组合与请求头类别、录制策略、例外回放或输入元数据以及工作区事实。带类型的 token 保留父子身份关系；只有请求头 pin 拥有提示词/schema sidecar。变更工作区的场景会独立比较完整的 `workspace.expected/` 目录，record 与 refresh 绝不改写该目录。当模型 transcript（文本记录）变化时使用 `test:snapshot:record`，回放输入仍有效时使用 `test:snapshot:refresh`；请审查所有结果差异。
 - **Web 浏览器快照**（`pnpm run test:web`；必需的 Linux PR（Pull Request）门禁）：Chromium 比较 `snapshots/web/` 下由会话驱动的输出，以及 `apps/web/tests/expected/` 下仅含 UI 的输出。CI 强制只读的 `DSH_SNAPSHOT=replay`，绝不写入预期输出；record/refresh 留在本地，每处 diff 都须评审（[web e2e 车道](../.agents/notes/implemented/testing/2026-07-24-web-gui-browser-e2e-lane.zh.md)、[CI 门禁决策](../.agents/notes/implemented/testing/2026-07-30-web-browser-snapshot-ci-gate.zh.md)）。`test:web` 会[先构建](../.agents/notes/implemented/bug-fix/2026-07-28-themed-scrollbars-and-reserved-gutter.zh.md)以交付插件 CSS。
 
-会话 fixture 保留 header 与 payload，但省略正文序号／时间 envelope。回放会合成这些字段；运行时持久化不变。fixture 使用规范打包行；[迁移器](../scripts/migrate-packed-session-fixtures.ts)会改写旧布局。
+会话 fixture 保留 header 与 payload，但省略正文序号／时间 envelope。回放会合成这些字段；运行时持久化不变。fixture 使用规范打包行。
 
 ## spec 如何被执行
 
@@ -25,7 +25,7 @@ fork 出的 worker 会同时运行多个 spec 文件，coverage gate 会拆成�
 
 ## 优先使用真实实现而非 mock
 
-只 mock 开销高或不确定的边界（LLM（大语言模型）适配器、网络、时钟）；下游一切保持真实。手写替身只能证明桥接层在搬运字节，不能证明交付的工具行为符合断言。桥接工具调用测试把真实的工具注册表与执行管线保留在脚本化 mock 模型下游：`makeBridgeHarness()`（packages/acp/acp/tests/harness.ts）挂载 agent loop、会话存储、工具注册表与 JSONL 持久化，唯一 mock 是脚本化 `MockAdapter`。
+只 mock 开销高或不确定的边界（LLM（大语言模型）适配器、网络、时钟）；下游一切保持真实。手写替身只能证明桥接层在搬运字节，不能证明交付的工具行为符合断言。桥接工具调用测试把真实的工具注册表与执行管线保留在脚本化 mock 模型下游：`makeBridgeHarness`挂载 agent loop、会话存储、工具注册表与 JSONL 持久化，唯一 mock 是脚本化 `MockAdapter`。
 
 恢复测试按步骤区分分片前与分片后的失败，并证明失败分片不会派生出消息或工具副作用。覆盖耗尽、取消、策略组合、持久化、状态、协议计数、会关闭传输的空闲超时，以及交付的 Loader 组合。
 
@@ -37,7 +37,7 @@ e2e 断言应重新运行命令或从外部重新读取文件；对 agent 自身
 
 - 产品可见的插件必须有一个非单元的真实组合测试。手动构建的 `ctx.plugin(...)` 套件不够：通过 Loader 和 app/process 启动仅用于测试的 `cordis.yml`，只 mock 外部服务或非确定性输入，断言模型可见的请求/日志、持久状态或用户可见输出。不要把 opt-in 选项混入交付默认值。
 - 一个守卫只有在回归能让它失败时才有效。对于没有 `inject` 的插件（bundle/组合插件），Loader 冒烟测试在默认导出替换必需的具名导出时仍然绿着——需要添加显式的 `expect('default' in mod).toBe(false)` 加 `unwrapExports` 往返断言，并证明它有效：引入回归、观察变红、回退。
-- 「真实入口路径」指已发布的产物：包的 `bin` 所运行的是构建后的 `lib/bin.js`，并由普通 `node` 执行，从而暴露 tsx 会掩盖的失败（结算竞态、模块解析、被吞掉的加载失败）。同样的规则适用于非 index 运行时入口（worker-thread 的同级文件 `lib/worker.cjs`），也适用于多个 bundle 共享的单例模块（`packages/sdk/server/tests/built-scope-carrier.e2e.ts`）。保持构建产物冒烟测试绿色（`packages/examples/*/tests/built-bin.e2e.ts`、`packages/code-runtime/code-runtime-worker-thread/tests/built-lib.e2e.ts`），并断言真正缺失的配置以非零状态退出。
+- 「真实入口路径」指已发布的产物：包的 `bin` 所运行的是构建后的 `lib/bin.js`，并由普通 `node` 执行，从而暴露 tsx 会掩盖的失败（结算竞态、模块解析、被吞掉的加载失败）。同样的规则适用于非 index 运行时入口（worker-thread 的同级文件 `lib/worker.cjs`），也适用于多个 bundle 共享的单例模块（``）。保持构建产物冒烟测试绿色（``、``），并断言真正缺失的配置以非零状态退出。
 
 ## 测试解析：仅限源码
 

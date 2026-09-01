@@ -55,7 +55,6 @@ The bundle's single insert is the complete application tree: SDK stdio startup a
 | [`cordis.patch.yml`](cordis.patch.yml) | Complete standalone profile tree and its environment-backed defaults |
 | [`src/index.ts`](src/index.ts) | Bundle package entry |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion for the static composition |
-| [`tests/sdk-minimal.spec.ts`](tests/sdk-minimal.spec.ts) | Exact composition, profile-name, and platform-selection checks |
 
 </details>
 

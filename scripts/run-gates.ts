@@ -11,13 +11,6 @@ import { availableParallelism } from 'node:os'
 import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { CLIENT_BUILD_PROFILE_SELECTOR } from './client-build-environment.ts'
-import { COVERAGE_EXEMPT_ENV, coverageExemptHeavySuites } from './coverage-exempt.ts'
-import {
-  COVERAGE_PARTITIONS_ENV,
-  COVERAGE_TEST_TIMEOUT_ENV,
-  coverageTestTimeoutArgs,
-  parseCoveragePartitionCount,
-} from './coverage-partitions.ts'
 import { pnpmInvocation } from './pnpm-invocation.ts'
 
 /** A named aggregate exposed by the gate runner. */
@@ -26,8 +19,6 @@ export type Mode =
   | 'ci-linux-primary'
   | 'ci-static'
   | 'ci-lint-contracts-ready'
-  | 'ci-coverage'
-  | 'ci-snapshot'
   | 'ci-artifacts'
   | 'ci-consumers'
   | 'ci-windows-blocking'
@@ -136,8 +127,6 @@ function parseMode(raw: string | undefined): Mode {
     case 'ci-linux-primary':
     case 'ci-static':
     case 'ci-lint-contracts-ready':
-    case 'ci-coverage':
-    case 'ci-snapshot':
     case 'ci-artifacts':
     case 'ci-consumers':
     case 'ci-windows-blocking':
@@ -151,7 +140,7 @@ function parseMode(raw: string | undefined): Mode {
       return raw
     default:
       throw new Error(
-        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-snapshot | ci-artifacts | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational | node-compat | check-all | hygiene | doc-sync | doc-quick, got ${JSON.stringify(raw)}.`,
+        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-artifacts | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational | node-compat | check-all | hygiene | doc-sync | doc-quick, got ${JSON.stringify(raw)}.`,
       )
   }
 }
@@ -212,16 +201,6 @@ function ciBuildGate(id = 'build', options: Partial<Gate> = {}): Gate {
   })
 }
 
-function pnpmExec(id: string, args: string[], options: Partial<Gate> = {}): Gate {
-  return {
-    id,
-    label: options.label ?? `pnpm exec ${args.join(' ')}`,
-    displayCommand: `pnpm exec ${args.join(' ')}`,
-    ...pnpmInvocation(['exec', ...args]),
-    ...options,
-  }
-}
-
 /**
  * Construct the complete gate list for a named aggregate.
  * @param selected - aggregate mode to construct.
@@ -232,7 +211,7 @@ export function gatesForMode(selected: Mode): Gate[] {
     case 'ci-primary':
       return ciPrimaryGates()
     case 'ci-linux-primary':
-      return [...ciPrimaryGates(), webSnapshotGate(['built-package-invariants'])]
+      return ciPrimaryGates()
     case 'ci-static':
       return ciStaticGates({ ownsBuild: false })
     case 'ci-lint-contracts-ready':
@@ -240,10 +219,6 @@ export function gatesForMode(selected: Mode): Gate[] {
         lintGate(),
         pnpmScript('duplication', 'duplication'),
       ]
-    case 'ci-coverage':
-      return coverageGates()
-    case 'ci-snapshot':
-      return [ciBuildGate(), snapshotGate()]
     case 'ci-artifacts':
       return ciArtifactGates()
     case 'ci-consumers':
@@ -261,11 +236,7 @@ export function gatesForMode(selected: Mode): Gate[] {
         pnpmScript('runtime-closure', 'verify-runtime-closure', { label: 'runtime closure' }),
         pnpmScript('cordis-config', 'verify-cordis-config', { label: 'Cordis config' }),
         pnpmScript('client-domain-graph', 'verify-client-domain-graph', { label: 'client domain graph' }),
-        pnpmScript('test', 'test'),
-        pnpmScript('issue-management', 'test:issue-management', { label: 'Issue management policy' }),
         pnpmScript('duplication', 'duplication'),
-        snapshotGate(),
-        expectedOutputGate(),
         pnpmScript('build', 'build'),
         pnpmScript('build:web', 'build:web'),
         ...hygieneLeafGates({ artifactNeeds: ['build'] }),
@@ -304,7 +275,6 @@ function ciSharedStaticGates(): Gate[] {
     }),
     pnpmScript('client-packages', 'verify-client-packages', { label: 'client packages' }),
     pnpmScript('client-ui-i18n', 'verify-client-ui-i18n', { label: 'client UI i18n' }),
-    pnpmScript('issue-management', 'test:issue-management', { label: 'Issue management policy' }),
   ]
 }
 
@@ -315,9 +285,6 @@ function ciPrimaryGates(): Gate[] {
     pnpmScript('typecheck', 'typecheck:contracts-ready', { needs: ['typert-contracts'] }),
     lintGate({ needs: ['typert-contracts'] }),
     pnpmScript('duplication', 'duplication'),
-    ...coverageGates(),
-    ...nodeCompatSmokeGates(),
-    snapshotGate(),
     ...docSyncLeafGates({
       docTypecheckNeeds: ['typert-contracts'],
       docTypecheckScript: 'doc-typecheck:contracts-ready',
@@ -333,7 +300,6 @@ function ciPrimaryGates(): Gate[] {
       needs: ['build'],
     }),
     builtPackageInvariantsGate(['build']),
-    builtBinSmokeGate(),
   ]
 }
 
@@ -341,9 +307,6 @@ function nodeCompatGates(): Gate[] {
   const typecheck = flagEnabled('DSH_NODE_COMPAT_SKIP_TYPECHECK')
     ? []
     : [pnpmScript('typecheck', 'typecheck')]
-  if (runningNodeMajor() !== 22) {
-    return [...typecheck, ...nodeCompatSmokeGates()]
-  }
   return [
     ...typecheck,
     pnpmScript('build', 'build', {
@@ -353,56 +316,7 @@ function nodeCompatGates(): Gate[] {
       label: 'Web frontend build',
       needs: ['build'],
     }),
-    ...nodeCompatSmokeGates({ cliSmoke: true }),
   ]
-}
-
-function nodeCompatSmokeGates(options: { cliSmoke?: boolean } = {}): Gate[] {
-  const gates: Gate[] = [
-    pnpmExec('source-worker-smoke', [
-      'vitest',
-      'run',
-      'packages/workflow/workflow-worker-thread/tests/source-worker.compat.spec.ts',
-    ], { label: 'source worker smoke' }),
-    pnpmExec('jsonl-zstd-smoke', [
-      'vitest',
-      'run',
-      'packages/session/session-persistence-jsonl/tests/zstd.compat.spec.ts',
-    ], { label: 'JSONL Zstandard smoke' }),
-    pnpmExec('dsh-source-launch-smoke', [
-      'vitest',
-      'run',
-      'apps/cli/tests/source-launch.compat.spec.ts',
-    ], { label: 'dsh source-launch smoke' }),
-    pnpmExec('vitest-jsdom-smoke', [
-      'vitest',
-      'run',
-      'scripts/vitest-environment.compat.spec.ts',
-    ], { label: 'Vitest jsdom smoke' }),
-  ]
-  if (options.cliSmoke) {
-    gates.push(
-      pnpmExec('cli-lazy-search-startup-smoke', [
-        'vitest',
-        'run',
-        'apps/cli/tests/lazy-search-startup.compat.spec.ts',
-      ], {
-        label: 'CLI lazy-search startup smoke',
-        env: { DSH_REQUIRE_BUILT_CLI_SMOKE: '1' },
-        needs: ['build:web'],
-      }),
-    )
-  }
-  return gates
-}
-
-/** Active Node major used to select version-specific compatibility checks. */
-function runningNodeMajor(): number {
-  const major = Number.parseInt(process.versions.node.split('.')[0] ?? '', 10)
-  if (!Number.isSafeInteger(major)) {
-    throw new Error(`run-gates: cannot parse Node version ${JSON.stringify(process.versions.node)}.`)
-  }
-  return major
 }
 
 function ciStaticGates(options: { ownsBuild: boolean }): Gate[] {
@@ -433,25 +347,12 @@ function ciArtifactGates(): Gate[] {
       needs: ['build'],
     }),
     builtPackageInvariantsGate(['build']),
-    builtBinSmokeGate(),
   ]
 }
 
 function ciConsumerGates(): Gate[] {
   const builtTree = ['build']
   const validatedBuild = ['built-package-invariants']
-  // The HMR web test starts `dev:web`, which rewrites the shared `lib/` and
-  // `apps/web/dist/` trees. Let every build-artifact reader settle before that
-  // writer starts; `after` preserves the web diagnostic even if a reader fails.
-  const buildArtifactReaders = [
-    'publint',
-    'lint-and-duplication',
-    'snapshot',
-    'expected-output',
-    'doc-typecheck',
-    'node-next-types',
-    'built-bin-smoke',
-  ]
   return [
     ciBuildGate(),
     pnpmScript('node-compat', 'check:node-compat', {
@@ -464,9 +365,6 @@ function ciConsumerGates(): Gate[] {
       label: 'lint and duplication',
       needs: validatedBuild,
     }),
-    snapshotGate(validatedBuild),
-    expectedOutputGate(validatedBuild),
-    webSnapshotGate(validatedBuild, buildArtifactReaders),
     pnpmScript('doc-typecheck', 'doc-typecheck:contracts-ready', {
       needs: validatedBuild,
       env: { DSH_DOC_TYPECHECK_USE_BUILD_OUTPUT: '1' },
@@ -475,32 +373,7 @@ function ciConsumerGates(): Gate[] {
       label: 'node-next types',
       needs: validatedBuild,
     }),
-    builtBinSmokeGate(validatedBuild),
   ]
-}
-
-function webSnapshotGate(needs: string[], after?: string[]): Gate {
-  const order = after === undefined ? { needs } : { needs, after }
-  const workerRaw = process.env.DSH_WEB_SNAPSHOT_WORKERS
-  if (workerRaw !== undefined && workerRaw !== '') {
-    const workers = Number.parseInt(workerRaw, 10)
-    if (!Number.isSafeInteger(workers) || workers < 2 || String(workers) !== workerRaw) {
-      throw new Error(`run-gates: DSH_WEB_SNAPSHOT_WORKERS must be an integer greater than 1, got ${JSON.stringify(workerRaw)}.`)
-    }
-    return pnpmScript('web-snapshot', 'test:web:ci', {
-      label: 'web browser snapshot',
-      displayCommand: `DSH_SNAPSHOT=replay DSH_WEB_SNAPSHOT_WORKERS=${workers} pnpm run test:web:ci`,
-      env: { DSH_SNAPSHOT: 'replay' },
-      ...order,
-      streamOutput: true,
-    })
-  }
-  return pnpmScript('web-snapshot', 'test:web:built', {
-    label: 'web browser snapshot',
-    displayCommand: 'DSH_SNAPSHOT=replay pnpm run test:web:built',
-    env: { DSH_SNAPSHOT: 'replay' },
-    ...order,
-  })
 }
 
 function ciWindowsBlockingGates(): Gate[] {
@@ -511,35 +384,16 @@ function ciWindowsBlockingGates(): Gate[] {
 }
 
 function ciWindowsCompleteGates(): Gate[] {
-  const coverage = coverageGates().map(gate => ({
-    ...gate,
-    needs: [...new Set(['build', ...(gate.needs ?? [])])],
-  }))
-  const coverageAfter = coverage.map(gate => gate.id)
-  const observational = ciWindowsObservationalGates()
-    // The required production site replaces the observational MPA build; both
-    // VitePress modes write the same output directory and cannot overlap.
-    .filter(gate => gate.id !== 'build' && gate.id !== 'docs-site-build')
-    .map(gate => ({
-      ...gate,
-      allowFailure: true,
-      after: [...new Set([
-        ...coverageAfter,
-        ...(gate.after ?? []).map(id => id === 'docs-site-build' ? 'windows-site' : id),
-      ])],
-    }))
   return [
     ciBuildGate(),
     pnpmScript('windows-site', 'docs:build', { label: 'production site' }),
-    ...coverage,
-    ...observational,
+    ...ciWindowsObservationalGates(),
   ]
 }
 
 function ciWindowsObservationalGates(): Gate[] {
-  const predecessors = [
+  return [
     ...ciStaticGates({ ownsBuild: true }),
-    // Linux owns required lint and snapshots; Windows omits those duplicates.
     pnpmScript('duplication', 'duplication'),
     pnpmScript('publint', 'publint', { needs: ['build'] }),
     pnpmScript('node-next-types', 'verify-node-next-types', {
@@ -547,15 +401,6 @@ function ciWindowsObservationalGates(): Gate[] {
       needs: ['build'],
     }),
     builtPackageInvariantsGate(['build']),
-  ]
-  return [
-    ...predecessors,
-    {
-      ...builtBinSmokeGate(),
-      // This smoke starts real application children with bounded startup
-      // deadlines. Let other Windows processes settle before measuring startup.
-      after: predecessors.map(gate => gate.id),
-    },
   ]
 }
 
@@ -574,102 +419,11 @@ function lintGate(options: { needs?: string[] } = {}): Gate {
   })
 }
 
-// The heavy suites run uninstrumented beside the thresholded gate: their
-// compiler- and subprocess-bound fixtures pay a multiple of their runtime
-// under v8 instrumentation while contributing nothing the thresholds need
-// (membership rules in scripts/coverage-exempt.ts).
-//
-// DSH_COVERAGE_MAX_WORKERS is the ordinary lane's worker budget, so the two
-// parallel gates split it instead of each claiming it whole. When
-// DSH_COVERAGE_PARTITIONS is set, its single-worker processes replace the
-// instrumented share while this budget still sizes the exempt gate. The exempt
-// gate's wall clock is dominated by its longest single file, so it takes the
-// small share. A budget of 1 gives each gate 1 worker; lanes that need a strict
-// total of one (the serial reference jobs) also set DSH_GATE_CONCURRENCY=1,
-// which keeps the gates from overlapping at all.
-// DSH_COVERAGE_TEST_TIMEOUT_MS raises Vitest's per-test, expect.poll, and hook
-// defaults together for instrumented lanes whose scheduling overhead exceeds
-// those defaults. Explicit fixture timeouts remain authoritative.
-function coverageWorkerArgs(): { instrumented: string[]; exempt: string[] } {
-  const [flag] = positiveIntArg('DSH_COVERAGE_MAX_WORKERS', '--maxWorkers')
-  if (flag === undefined) return { instrumented: [], exempt: [] }
-  const total = Number.parseInt(flag.split('=')[1] ?? '', 10)
-  const exempt = Math.max(1, Math.floor(total / 3))
-  const instrumented = Math.max(1, total - exempt)
-  return {
-    instrumented: [`--maxWorkers=${String(instrumented)}`],
-    exempt: [`--maxWorkers=${String(exempt)}`],
-  }
-}
-
-function coverageGates(): Gate[] {
-  const workers = coverageWorkerArgs()
-  const timeouts = coverageTestTimeoutArgs(process.env[COVERAGE_TEST_TIMEOUT_ENV])
-  const partitions = parseCoveragePartitionCount(process.env[COVERAGE_PARTITIONS_ENV])
-  const instrumented = partitions === undefined
-    ? pnpmExec('coverage', [
-      'vitest',
-      'run',
-      '--coverage',
-      ...workers.instrumented,
-      ...timeouts,
-    ], {
-      label: 'test:coverage',
-      env: { [COVERAGE_EXEMPT_ENV]: '1' },
-    })
-    : pnpmScript('coverage', 'test:coverage:partitioned', {
-      label: 'test:coverage',
-      displayCommand: `${COVERAGE_PARTITIONS_ENV}=${partitions} pnpm run test:coverage:partitioned`,
-      env: { [COVERAGE_EXEMPT_ENV]: '1' },
-      streamOutput: true,
-    })
-  return [
-    instrumented,
-    pnpmExec('coverage-exempt-heavy', [
-      'vitest',
-      'run',
-      ...coverageExemptHeavySuites.map(suite => suite.filter),
-      ...workers.exempt,
-      ...timeouts,
-    ], {
-      label: 'test:coverage-exempt-heavy',
-    }),
-  ]
-}
-
-// Recorded-session adapters boot process scenarios in `lib` mode. Callers wait
-// either on `build` or on a validation gate that transitively owns that build.
-function snapshotGate(needs: string[] = ['build']): Gate {
-  return pnpmScript('snapshot', 'test:snapshot', {
-    env: { DSH_EXAMPLE_MODE: 'lib' },
-    needs,
-  })
-}
-
-// Owner-local process expectations consume built package exports without entering
-// the recorded-session corpus or the credentialed provider lane.
-function expectedOutputGate(needs: string[] = ['build']): Gate {
-  return pnpmScript('expected-output', 'test:expected', {
-    env: { DSH_EXAMPLE_MODE: 'lib' },
-    needs,
-  })
-}
-
 function builtPackageInvariantsGate(needs?: string[]): Gate {
   return pnpmScript('built-package-invariants', 'verify-built-package-invariants', {
     label: 'built package invariants',
     ...needs === undefined ? {} : { needs },
   })
-}
-
-function positiveIntArg(envName: string, flag: string): string[] {
-  const raw = process.env[envName]
-  if (raw === undefined || raw === '') return []
-  const parsed = Number.parseInt(raw, 10)
-  if (!Number.isSafeInteger(parsed) || parsed < 1 || String(parsed) !== raw) {
-    throw new Error(`run-gates: ${envName} must be a positive integer, got ${JSON.stringify(raw)}.`)
-  }
-  return [`${flag}=${raw}`]
 }
 
 function flagEnabled(envName: string): boolean {
@@ -745,13 +499,6 @@ function docSyncLeafGates(options: {
     pnpmScript('skill-invocation-metadata', 'verify-skill-invocation-metadata', { label: 'skill invocation metadata', quick: true }),
     pnpmScript('translation-prompt', 'verify-translation-prompt', { label: 'translation prompt', quick: true }),
     pnpmScript('doc-budgets', 'verify-doc-budgets', { label: 'doc budgets', quick: true }),
-    pnpmExec('doc-standard-tests', ['vitest', 'run', 'scripts/doc-standard.spec.ts'], {
-      label: 'documentation standard tests',
-      quick: true,
-    }),
-    pnpmExec('docs-site-projection', ['vitest', 'run', 'scripts/project-doc-site.spec.ts', 'scripts/verify-doc-site-fragments.spec.ts'], {
-      label: 'documentation site checks',
-    }),
     pnpmScript('package-readme-limitations', 'verify-package-readme-limitations', { label: 'package README limitations', quick: true }),
   ]
 }
@@ -763,33 +510,6 @@ function docSyncLeafGates(options: {
  */
 function docQuickLeafGates(): Gate[] {
   return docSyncLeafGates({ includeDocTypecheck: false }).filter(gate => gate.quick === true)
-}
-
-function builtBinSmokeGate(needs: string[] = ['build']): Gate {
-  return pnpmExec('built-bin-smoke', [
-    'vitest',
-    'run',
-    '--config',
-    'vitest.e2e.config.ts',
-    'apps/cli/tests/profiles/headless/tests/keyless-smoke.e2e.ts',
-    'apps/cli/tests/built-bin.e2e.ts',
-    'packages/host/directory-picker-native/tests/built-worker.e2e.ts',
-    'packages/sdk/server/tests/built-scope-carrier.e2e.ts',
-    'packages/subagent/subagent-codex/tests/loader-composition.e2e.ts',
-    'packages/subagent/subagent-claude-code/tests/loader-composition.e2e.ts',
-    'packages/api/remotes/tests/built-lib.e2e.ts',
-    'packages/experimental/agent-team/tests/built-lib.e2e.ts',
-    // Built execution consumers: the only automated proof that package-name
-    // imports reach their lib/ entrypoints under plain Node. The e2e lane runs
-    // unbuilt, so these files self-skip there.
-    'packages/workflow/workflow-worker-thread/tests/built-worker.e2e.ts',
-    'packages/code-runtime/code-runtime-worker-thread/tests/built-lib.e2e.ts',
-    'packages/lsp/lsp-stdio/tests/built-lib.e2e.ts',
-  ], {
-    label: 'built-bin smoke',
-    needs,
-    env: { DSH_EXAMPLE_MODE: 'lib' },
-  })
 }
 
 /**

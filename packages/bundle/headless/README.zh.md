@@ -79,8 +79,6 @@ patch 叠加在 `dsh-base` 之上：继承投影缓存，在基础 `system-promp
 | [`src/startup.ts`](src/startup.ts) | `headless-startup` 提供方：任务位置参数与 `--help` |
 | [`cordis.patch.yml`](cordis.patch.yml) | 叠加在 `dsh-base` 之上的一次性 patch |
 | [`src/invariant.ts`](src/invariant.ts) | 不变式伴生插件：无运行时不变式；可观察约定是进程级的 |
-| [`tests/headless.spec.ts`](tests/headless.spec.ts) | 运行流程、汇总、flush 与退出映射 |
-| [`tests/startup.spec.ts`](tests/startup.spec.ts) | 在真实 Loader 树上的命令行解析 |
 
 ### 不变式归属
 

@@ -74,8 +74,6 @@ This section explains the design decisions behind the package and points at the 
 |---|---|
 | [`src/index.ts`](src/index.ts) | Library entry: `getOrCreateAnonymousUserId`, file persistence, per-path memoization |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion with an empty installer (no runtime invariant; the only relation is private and side-effecting) |
-| [`tests/anonymous-user-id.spec.ts`](tests/anonymous-user-id.spec.ts) | Exercised behavior: mint, persistence, corruption, concurrency, memoization |
-| [`tests/invariant.spec.ts`](tests/invariant.spec.ts) | Companion registration through the invariants service |
 
 ### The API
 
