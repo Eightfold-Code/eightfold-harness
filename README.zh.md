@@ -1,84 +1,141 @@
-# DeepSeek Harness
+# Eightfold Harness
 
 [English](README.md) | 中文
 
-DeepSeek Harness（`dsh`）是由 [DeepSeek AI](https://deepseek.com) 开发的开源 agent harness（智能体框架）。
+**面向可组合、可适配 AI 系统的运行时。**
 
-它构建于**一切皆插件**的架构之上，由 [Cordis](https://github.com/cordiverse/cordis) 驱动，其设计参见论文 [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512)。
+Eightfold Harness 是基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 与 [Cordis](https://github.com/cordiverse/cordis) 的插件优先 agent 运行时。它保留原生 Harness 生命周期，并加入 Eightfold 模型来发现、安装与组合可替换能力。
 
-文档：[https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
+> Eightfold 处于开发者预览阶段。API、命令、manifest 与仓库结构都可能变化。
 
-## 开发者预览
+## Eightfold 模型
 
-DeepSeek Harness 处于 _开发者预览_ 阶段，正在快速迭代。**未来将出现破坏兼容性的变更。**
+| 项目 | 角色 | 拥有 |
+| --- | --- | --- |
+| [Harness](https://github.com/Eightfold-Code/eightfold-harness) | 运行时 | 会话、profile、生命周期与插件组合 |
+| [Treasury](https://github.com/Eightfold-Code/eightfold-treasury) | 能力目录 | 可安装的适配与命名 bundle |
+| [Armoury](https://github.com/Eightfold-Code/eightfold-armoury) | 视觉目录 | 纯展示的皮肤与主题 |
 
-运行本项目前，请阅读[安全说明](SAFETY.zh.md)。
+Harness 是引擎。Treasury 提供能力。Armoury 提供视觉呈现。
 
-<a id="run"></a>
+## Harness 提供什么
 
-## 运行
+- 建立在 Cordis 生命周期之上的插件图。
+- 面向 web、终端、headless 及其他表面的可组合 profile。
+- 会话、工具、模型、文件系统、shell、子代理与工作流的运行时服务。
+- Treasury 发布适配的原生安装路径。
+- 通过 Armoury 独立选择皮肤。
 
-### 通过 `npm` 运行
+Eightfold 扩展现有 Harness 架构，而不是创建一个并行的插件运行时。
 
-安装 `Node.js`，然后运行：
+## 快速开始
 
-```sh
-npx @deepseek-ai/dsh web
-```
+### 要求
 
-该命令默认会在 `http://127.0.0.1:3080` 启动 Web UI，本机启动时还会用默认浏览器打开页面。通过 SSH 启动时只打印宿主机 URL，因为本地转发地址由 SSH 客户端或编辑器持有。传入 `--no-open` 可仅运行服务器而不打开浏览器。详见 [Web UI 指南](docs/user/guide/index.zh.md)。
-
-<a id="run-from-source"></a>
+- Node.js `^22.19.0` 或 `>=24.0.0`
+- pnpm 11
 
 ### 从源码运行
 
-如需从仓库源码运行：
+<a id="run-from-source"></a>
 
-```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
+```bash
+git clone https://github.com/Eightfold-Code/eightfold-harness.git
+cd eightfold-harness
+corepack enable
 pnpm install
 pnpm run build
 pnpm dsh web
 ```
 
-`pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。
+Web UI 默认从 `http://127.0.0.1:3080` 启动。
 
-## 社区与支持
+运行其他 profile：
 
-- 通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。
-- 为你的插件仓库添加 [`dsh-plugin`](https://github.com/topics/dsh-plugin) 话题，便于被发现。
-- 欢迎加入 DeepSeek Harness 企微群：扫码添加企微小助手并填写入群问卷，完成后小助手会邀请你入群。
+```bash
+pnpm dsh --profile tui
+pnpm dsh --profile headless "inspect this repository"
+```
 
-<table>
-  <thead>
-    <tr>
-      <th align="center">企微小助手</th>
-      <th align="center">入群问卷</th>
-      <th align="center">微信公众号</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center"><img src="https://cdn.deepseek.com/harness/readme/community-wecom-assistant.png" alt="DeepSeek Harness 企微小助手二维码" width="180" height="180"></td>
-      <td align="center"><a href="https://trtgsjkv6r.feishu.cn/share/base/form/shrcnIt5twSVdLGD52KJBckGCgg"><img src="https://cdn.deepseek.com/harness/readme/community-wecom-survey.png" alt="DeepSeek Harness 入群问卷二维码" width="180" height="180"></a></td>
-      <td align="center"><img src="https://cdn.deepseek.com/harness/readme/community-wechat-official-account.png" alt="DeepSeek Harness 团队微信公众号二维码" width="180" height="180"></td>
-    </tr>
-  </tbody>
-</table>
+## 安装能力
 
-## 参与贡献
+通过 Treasury 发现并安装适配：
 
-参见 [CONTRIBUTING.md](CONTRIBUTING.zh.md)。
+```bash
+pnpm dsh eightfold treasury list
+pnpm dsh eightfold treasury search session
+pnpm dsh eightfold add session-search
+```
+
+安装命名 bundle：
+
+```bash
+pnpm dsh eightfold bundle list
+pnpm dsh eightfold bundle add developer
+```
+
+更新或移除已安装的适配：
+
+```bash
+pnpm dsh eightfold update session-search
+pnpm dsh eightfold remove session-search
+```
+
+安装适配不会悄悄改写既有 profile。profile 激活始终是显式的。
+
+## 选择皮肤
+
+独立于能力选择呈现层：
+
+```bash
+pnpm dsh eightfold armoury list
+pnpm dsh eightfold armoury search dark
+pnpm dsh eightfold skin add obsidian
+pnpm dsh eightfold skin use obsidian
+```
+
+一个 profile 可以同时包含两种选择：
+
+```json
+{
+  "adaptations": ["session-search", "developer-tools"],
+  "skin": "obsidian"
+}
+```
+
+## 可复现安装
+
+Treasury 与 Armoury 的 registry 条目把已发布的包解析到确切的 Git commit。Harness 在记录一次安装之前校验 manifest、兼容性元数据、归档路径与声明的权限。
+
+默认情况下，Eightfold 将受管状态存储在当前工作目录的 `.eightfold/` 中。设置 `EIGHTFOLD_HOME` 使用其他位置；设置 `EIGHTFOLD_TREASURY_URL` 使用其他 registry 端点。
 
 ## 开发
 
-请先阅读[开发指南](docs/development.zh.md)与[架构文档](docs/architecture.zh.md)。
+在 Eightfold 层演进的同时，仓库保留上游包结构与 `@deepseek-ai/*` 包命名。
 
-面向 agent：请遵循 [AGENTS.md](AGENTS.md)。
+有用的参考：
+
+- [架构](docs/architecture.zh.md)
+- [开发指南](docs/development.zh.md)
+- [贡献](CONTRIBUTING.zh.md)
+- [Agent 指令](AGENTS.md)
+- [Eightfold Treasury](https://github.com/Eightfold-Code/eightfold-treasury)
+- [Eightfold Armoury](https://github.com/Eightfold-Code/eightfold-armoury)
+
+## 设计原则
+
+- **默认模块化** — 运行时行为由可替换模块组合而成。
+- **原生而非并行** — 使用既有 Harness 与 Cordis 生命周期。
+- **可复现** — 已发布的源解析到确切 commit。
+- **可检视** — manifest 与权限描述将被安装的内容。
+- **可组合** — profile 独立组合能力与呈现。
+
+## 上游
+
+Eightfold Harness 基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)。在 Eightfold 发展自己的分发模型的同时，保持对上游的显式署名。
 
 ## 许可证
 
 [MIT](LICENSE)
 
-第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+第三方依赖及其许可证列于 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

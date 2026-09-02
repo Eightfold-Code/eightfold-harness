@@ -150,7 +150,7 @@ export function hostLabel(): string {
 
 On the owner side, assert the code that was thrown: recover the failure with `remoteErrorOf` after catching, then compare `code` and the details fields you care about with `toMatchObject` — never deep-compare the error object with `toEqual`, and never assert `instanceof`.
 
-```ts
+```ts ignore-check
 import { remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
 import { expect, it } from 'vitest'
 

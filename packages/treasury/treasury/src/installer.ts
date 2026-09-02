@@ -123,10 +123,25 @@ export function installedStatePath(home: string): string {
   return join(home, 'installed.json')
 }
 
+/**
+ * Validate one recorded source triple from an installed-state record.
+ * @param value - the parsed source JSON, expected to be an object.
+ * @param path - field path used in positioned errors.
+ * @returns the validated installed source.
+ * @throws when a field is missing or mistyped.
+ */
+export function parseInstalledSource(value: unknown, path: string): InstalledSource {
+  const record = asRecord(value, path)
+  return {
+    repository: asString(record.repository, `${path}.repository`),
+    branch: asString(record.branch, `${path}.branch`),
+    commit: asString(record.commit, `${path}.commit`),
+  }
+}
+
 function parseInstalledAdaptation(id: string, value: unknown): InstalledAdaptation {
   const path = `installed.adaptations.${id}`
   const record = asRecord(value, path)
-  const source = asRecord(record.source, `${path}.source`)
   const manifest = parseManifest(record.manifest)
   const permissions = record.permissions
   if (!Array.isArray(permissions) || permissions.some(item => typeof item !== 'string')) {
@@ -135,11 +150,7 @@ function parseInstalledAdaptation(id: string, value: unknown): InstalledAdaptati
   return {
     manifest,
     permissions,
-    source: {
-      repository: asString(source.repository, `${path}.source.repository`),
-      branch: asString(source.branch, `${path}.source.branch`),
-      commit: asString(source.commit, `${path}.source.commit`),
-    },
+    source: parseInstalledSource(record.source, `${path}.source`),
     installedAt: asString(record.installedAt, `${path}.installedAt`),
   }
 }
@@ -223,7 +234,7 @@ export async function downloadBytes(fetcher: HttpFetch, url: string): Promise<Ui
 }
 
 /** One planned extraction operation, fully validated before any write. */
-interface PlannedEntry {
+export interface PlannedEntry {
   readonly segments: string[]
   readonly type: 'file' | 'directory'
   readonly data: Uint8Array
@@ -293,6 +304,26 @@ export async function extractPlanned(planned: readonly PlannedEntry[], dest: str
 }
 
 /**
+ * Write a validated extraction plan under `dest` atomically: extract into a
+ * sibling temp directory, replace any existing installation, and leave the
+ * previous directory untouched when extraction fails.
+ * @param planned - the validated plan from {@link planExtraction}.
+ * @param dest - the absolute installation directory.
+ */
+export async function extractAtomically(planned: readonly PlannedEntry[], dest: string): Promise<void> {
+  const temp = `${dest}.tmp-${process.pid}-${Math.random().toString(16).slice(2)}`
+  try {
+    await extractPlanned(planned, temp)
+    await rm(dest, { recursive: true, force: true })
+    await mkdir(dirname(dest), { recursive: true })
+    await rename(temp, dest)
+  } catch (cause) {
+    await rm(temp, { recursive: true, force: true })
+    throw cause
+  }
+}
+
+/**
  * Install one adaptation: pin the commit, download the tarball, validate the
  * manifest and every archive path before writing, extract atomically, and
  * record the result. An existing installation is replaced.
@@ -333,16 +364,7 @@ export async function installAdaptation(
   }
 
   const dest = join(adaptationsDirectory(home), id)
-  const temp = `${dest}.tmp-${process.pid}-${Math.random().toString(16).slice(2)}`
-  try {
-    await extractPlanned(planned, temp)
-    await rm(dest, { recursive: true, force: true })
-    await mkdir(dirname(dest), { recursive: true })
-    await rename(temp, dest)
-  } catch (cause) {
-    await rm(temp, { recursive: true, force: true })
-    throw cause
-  }
+  await extractAtomically(planned, dest)
 
   const record: InstalledAdaptation = {
     manifest,

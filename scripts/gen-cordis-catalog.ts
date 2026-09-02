@@ -65,6 +65,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   clientModules: 'client-modules.md',
   codeRuntime: 'code-runtime.md',
   commands: 'commands.md',
+  marketplace: 'marketplace.md',
   compaction: 'compaction.md',
   cordisInspect: 'extensions.md',
   authorization: 'credentials.md',
@@ -652,6 +653,11 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   z: 'schemastery schema constructor is owned by vendor/schemastery (vendored upstream)',
+  MarketplaceCatalogRequest: 'wire request contract is owned by packages/treasury/marketplace/README.md',
+  MarketplaceCatalogValue: 'wire result contract is owned by packages/treasury/marketplace/README.md',
+  MarketplaceInstallRequest: 'wire request contract is owned by packages/treasury/marketplace/README.md',
+  MarketplaceSkinRequest: 'wire request contract is owned by packages/treasury/marketplace/README.md',
+  MarketplaceSkinValue: 'wire result contract is owned by packages/treasury/marketplace/README.md',
   BeginCommandRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   InsertReferenceRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   ConsumeTokenRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',

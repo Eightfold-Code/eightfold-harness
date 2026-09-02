@@ -9,7 +9,10 @@
 | 命令 | 用途 |
 |---|---|
 | `dsh --profile <name>` | 启动位于 `$DSH_HOME/profiles/<name>` 的指定 profile。 |
+| `dsh --profile acp` | 通过 ACP stdio 服务自动化客户端，直至断开。 |
 | `dsh --profile headless "job"` | 运行一个全新的持久化会话，打印最终答案并退出。 |
+| `dsh --profile sdk` | 通过 JSON-RPC stdio 服务 SDK 客户端，直至关闭或断开。 |
+| `dsh --profile sdk-minimal` | 以独立的极简 agent 树服务 SDK 客户端。 |
 | `dsh web` | `--profile web` 的别名。 |
 | `dsh plugin --profile <name> <pnpm args>` | 通过在 profile 目录中转发给 pnpm 来管理该 profile 的插件。 |
 
@@ -43,6 +46,10 @@ profile 目录包含一个 `package.json`，其中记录树外插件依赖，以
 使用 `--dump-default-config` 和 `--dump-config` 可在不启动的情况下检查组合后的配置树。
 
 层的确切优先级、flag、关闭行为、部署默认值和源码执行方式，以 [CLI（命令行界面）行为参考](reference/README.zh.md)为准。
+
+## 可选覆盖层
+
+`config/examples/` 提供可选的覆盖层：GitHub 审查 webhook、会话级 Schedule、内存 MCP 服务器和运行时 Cordis 工具。它们绝不是默认 profile 的一部分；安装与安全说明由[用户指南](../../docs/user/guide/index.zh.md)和[开发者实践指南](../../docs/user/develop/practice/index.zh.md)拥有。
 
 ## 开发
 

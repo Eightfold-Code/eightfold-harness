@@ -40,8 +40,15 @@ export interface TreasuryRegistry {
   /** Named sets of adaptation ids that can be installed together. */
   readonly bundles: Readonly<Record<string, readonly string[]>>
 }
-
-function parseSource(value: unknown, path: string): AdaptationSource {
+/**
+ * Validate one registry source location: an owner/repo pair plus a branch or
+ * pin.
+ * @param value - the parsed source JSON, expected to be an object.
+ * @param path - field path used in positioned errors.
+ * @returns the validated source location.
+ * @throws when a required field is missing or mistyped.
+ */
+export function parseDescriptorSource(value: unknown, path: string): AdaptationSource {
   const record = asRecord(value, path)
   const commit = asOptionalString(record.commit, `${path}.commit`)
   return {
@@ -51,7 +58,14 @@ function parseSource(value: unknown, path: string): AdaptationSource {
   }
 }
 
-function parseCompatibility(value: unknown, path: string): Record<string, string> {
+/**
+ * Validate one registry compatibility floor map.
+ * @param value - the parsed compatibility JSON, expected to be an object.
+ * @param path - field path used in positioned errors.
+ * @returns the validated compatibility map.
+ * @throws when a value is missing or not a string.
+ */
+export function parseDescriptorCompatibility(value: unknown, path: string): Record<string, string> {
   const record = asRecord(value, path)
   const compatibility: Record<string, string> = {}
   for (const [key, raw] of Object.entries(record)) {
@@ -68,8 +82,8 @@ function parseDescriptor(id: string, value: unknown): AdaptationDescriptor {
     description: asString(record.description, `${path}.description`),
     version: asString(record.version, `${path}.version`),
     entry: asString(record.entry, `${path}.entry`),
-    source: parseSource(record.source, `${path}.source`),
-    compatibility: parseCompatibility(record.compatibility, `${path}.compatibility`),
+    source: parseDescriptorSource(record.source, `${path}.source`),
+    compatibility: parseDescriptorCompatibility(record.compatibility, `${path}.compatibility`),
   }
 }
 

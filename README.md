@@ -1,5 +1,7 @@
 # Eightfold Harness
 
+English | [中文](README.zh.md)
+
 **The runtime for composable, adaptable AI systems.**
 
 Eightfold Harness is a plugin-first agent runtime based on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and [Cordis](https://github.com/cordiverse/cordis). It keeps the native Harness lifecycle and adds the Eightfold model for discovering, installing, and composing replaceable capabilities.

@@ -299,6 +299,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns local per-assistant-message feedback, lifecycle and target validation, per-item compare-and-set, and the Host unary Remote contract without entering Session history or telemetry.',
   },
   {
+    key: 'marketplace',
+    pkg: 'marketplace',
+    title: 'Eightfold marketplace Remote',
+    mode: 'core',
+    note: 'Projects the Armoury and Treasury catalogs, installs their entries under the Eightfold home, and resolves installed skins into client theme vocabulary over one unary Remote namespace.',
+  },
+  {
     key: 'workspaceRegistry',
     pkg: 'workspace',
     title: 'Workspace entity registry',

@@ -150,7 +150,7 @@ export function hostLabel(): string {
 
 owner 侧断言抛出的码：捕获后用 `remoteErrorOf` 取出失败，再用 `toMatchObject` 比对 `code` 与需要的 `details` 字段——不要用 `toEqual` 深比对错误对象，也不要断言 `instanceof`。
 
-```ts
+```ts ignore-check
 import { remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
 import { expect, it } from 'vitest'
 

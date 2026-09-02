@@ -340,6 +340,11 @@ flowchart TD
     pkg_loader_smoke["loader-smoke"]
     pkg_session_snapshot["session-snapshot"]
   end
+  subgraph group_treasury["packages/treasury"]
+    pkg_armoury["armoury"]
+    pkg_marketplace["marketplace"]
+    pkg_treasury["treasury"]
+  end
   subgraph group_typert["packages/typert"]
     pkg_typert_generator["typert-generator"]
     pkg_typert_loader["typert-loader"]
@@ -396,6 +401,8 @@ flowchart TD
   pkg_subprocess --> pkg_invariants
   pkg_win32_process --> pkg_invariants
   pkg_llm_mock_server --> pkg_invariants
+  pkg_armoury --> pkg_invariants
+  pkg_treasury --> pkg_invariants
   pkg_typert_generator --> pkg_invariants
   pkg_typert_loader --> pkg_invariants
   pkg_typert_loader --> pkg_typert_registry
@@ -462,6 +469,8 @@ flowchart TD
   pkg_subprocess_local --> pkg_invariants
   pkg_subprocess_local --> pkg_subprocess
   pkg_subprocess_local --> pkg_timeout
+  pkg_marketplace --> pkg_invariants
+  pkg_marketplace --> pkg_typert_protocol
   pkg_skill_badge --> pkg_invariants
   pkg_skill_badge --> pkg_skill
   pkg_spill --> pkg_brand
@@ -1394,6 +1403,8 @@ flowchart TD
 | [`subprocess`](../packages/subprocess/subprocess) | `subprocess` | [`invariants`](../packages/runtime-diagnostics/invariants) |
 | [`win32-process`](../packages/subprocess/win32-process) | `subprocess` | [`invariants`](../packages/runtime-diagnostics/invariants) |
 | [`llm-mock-server`](../packages/test-support/llm-mock-server) | `test-support` | [`invariants`](../packages/runtime-diagnostics/invariants) |
+| [`armoury`](../packages/treasury/armoury) | `treasury` | [`invariants`](../packages/runtime-diagnostics/invariants) |
+| [`treasury`](../packages/treasury/treasury) | `treasury` | [`invariants`](../packages/runtime-diagnostics/invariants) |
 | [`typert-generator`](../packages/typert/generator) | `typert` | [`invariants`](../packages/runtime-diagnostics/invariants) |
 | [`typert-loader`](../packages/typert/loader) | `typert` | [`invariants`](../packages/runtime-diagnostics/invariants), [`typert-registry`](../packages/typert/registry) |
 | [`typert-protocol`](../packages/typert/protocol) | `typert` | [`invariants`](../packages/runtime-diagnostics/invariants) |
@@ -1418,6 +1429,7 @@ flowchart TD
 | [`storage-json`](../packages/storage/storage-json) | `storage` | [`invariants`](../packages/runtime-diagnostics/invariants), [`storage`](../packages/storage/storage) |
 | [`storage-sqlite`](../packages/storage/storage-sqlite) | `storage` | [`invariants`](../packages/runtime-diagnostics/invariants), [`storage`](../packages/storage/storage) |
 | [`subprocess-local`](../packages/subprocess/subprocess-local) | `subprocess` | [`invariants`](../packages/runtime-diagnostics/invariants), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
+| [`marketplace`](../packages/treasury/marketplace) | `treasury` | [`invariants`](../packages/runtime-diagnostics/invariants), [`typert-protocol`](../packages/typert/protocol) |
 | [`skill-badge`](../packages/skill/skill-badge) | `skill` | [`invariants`](../packages/runtime-diagnostics/invariants), [`skill`](../packages/skill/skill) |
 | [`spill`](../packages/spill/spill) | `spill` | [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
 | [`attachment-local`](../packages/attachment/attachment-local) | `attachment` | [`attachment`](../packages/attachment/attachment), [`home-paths`](../packages/util/home-paths), [`invariants`](../packages/runtime-diagnostics/invariants) |

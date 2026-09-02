@@ -54,6 +54,11 @@
       config:
         maxNoteBytes: 8192
 
+    # Eightfold marketplace: web catalogue and install for Armoury skins and
+    # Treasury adaptations over the marketplace Remote.
+    - id: marketplace
+      name: '@deepseek-ai/dsh-marketplace'
+
     # Browser Session export: `/export` command plus the shared download dialog.
     - id: session-log-download
       name: '@deepseek-ai/dsh-session-log-export'

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/eightfold/bootstrap.md
+bootstrap.md: d172911416465abeef3b50db1365cbfacbe1f462
+bootstrap.zh.md: c422311f24e2daae86fe19b2b0f116c9f0de41d7

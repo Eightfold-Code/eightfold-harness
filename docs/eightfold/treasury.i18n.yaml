@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/eightfold/treasury.md
+treasury.md: 62879874f07b2b1cb4a1479292de2a066c7a671d
+treasury.zh.md: 2bbb7232b5e8eca20c3ab22f5e803bcf1d5f8afb

@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/storage.md
 storage.md: 60f97b99e6a483263705efb56339e75b789226f6
-storage.zh.md: 0825c2459c2e2b7778b4daec27e6709673a6344a
+storage.zh.md: 5bc3a337ee531fb4c635d8d4e989fd0af52afd3e

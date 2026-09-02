@@ -19,6 +19,8 @@ export {
   ADAPTATION_COMPATIBILITY_KEY,
   REGISTRY_SCHEMA_VERSION,
   isCompatible,
+  parseDescriptorCompatibility,
+  parseDescriptorSource,
   parseRegistry,
   type AdaptationDescriptor,
   type AdaptationSource,
@@ -38,9 +40,11 @@ export {
   adaptationsDirectory,
   defaultInstallerIo,
   downloadBytes,
+  extractAtomically,
   extractPlanned,
   installAdaptation,
   installedStatePath,
+  parseInstalledSource,
   planExtraction,
   readInstalledState,
   removeAdaptation,
@@ -51,4 +55,13 @@ export {
   type InstalledAdaptation,
   type InstalledSource,
   type InstalledState,
+  type PlannedEntry,
 } from './installer.ts'
+export { decompressTarGz, parseTarArchive, type TarEntry } from './tar.ts'
+export {
+  asNumber,
+  asOptionalString,
+  asRecord,
+  asString,
+  asStringArray,
+} from './validate.ts'

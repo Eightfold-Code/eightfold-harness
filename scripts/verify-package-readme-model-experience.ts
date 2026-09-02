@@ -35,6 +35,8 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
   'packages/util/home-paths': 'The package only resolves harness-owned host paths; model-facing consumers own any rendered use.',
   'packages/util/launch-environment': 'The package only resolves host environment values; model-facing consumers own any rendered use.',
   'packages/treasury/treasury': 'The package is a model-agnostic distribution and install utility; model-facing consumers own any rendered use of installed adaptations.',
+  'packages/treasury/armoury': 'The package is a model-agnostic distribution and install utility; the web client owns any rendered use of installed skins.',
+  'packages/treasury/marketplace': 'The package is a model-agnostic Remote API over the distribution utilities; the web client owns every rendered use of its results.',
   'packages/util/workspace-path': 'The package only formats Workspace paths for browser UI; it never constructs model input.',
   'packages/util/values': 'The package only validates, snapshots, compares, freezes, or rejects caller-owned values; consumers own every model-facing use.',
 }

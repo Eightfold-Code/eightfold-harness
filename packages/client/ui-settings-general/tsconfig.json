@@ -39,6 +39,9 @@
       "path": "../../settings/settings"
     },
     {
+      "path": "../../treasury/marketplace"
+    },
+    {
       "path": "../../runtime-diagnostics/invariants"
     },
     {
@@ -46,6 +49,9 @@
     },
     {
       "path": "../ui-sidebar"
+    },
+    {
+      "path": "../ui-theme"
     }
   ]
 }

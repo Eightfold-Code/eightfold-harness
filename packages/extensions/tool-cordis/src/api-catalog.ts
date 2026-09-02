@@ -1206,6 +1206,30 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'marketplace',
+    summary: 'The marketplace Remote service.',
+    description: 'The marketplace Remote service. Requires no other service: the distribution libraries own their own transport, process, and file access.',
+    methods: [
+      {
+        signature: '@Remote(\'catalog\') async catalog(request: MarketplaceCatalogRequest): Promise<MarketplaceCatalogValue>',
+        description: 'List one full catalogue: every registry entry with its installed and update state. Update checks resolve the current source head for each installed entry, so a listing performs one `git ls-remote` per installed entry.',
+        parameters: [{ name: 'request', description: 'the catalogue kind to list.' }],
+        returns: 'the frozen catalogue listing.',
+      },
+      {
+        signature: '@Remote(\'install\') async install(request: MarketplaceInstallRequest): Promise<void>',
+        description: 'Install one catalogue entry under the Eightfold home. An existing installation of the same id is replaced.',
+        parameters: [{ name: 'request', description: 'the catalogue kind and entry id.' }],
+      },
+      {
+        signature: '@Remote(\'skin\') async skin(request: MarketplaceSkinRequest): Promise<MarketplaceSkinValue>',
+        description: 'Resolve one installed skin into client theme vocabulary for registration in the Client theme registry.',
+        parameters: [{ name: 'request', description: 'the skin id.' }],
+        returns: 'the resolved skin.',
+      },
+    ],
+  },
+  {
     key: 'messageFeedback',
     summary: 'Storage-domain sidecar service.',
     description: 'Storage-domain sidecar service. It inspects persisted Session history and never creates or resumes an Agent or Session.',
@@ -4390,6 +4414,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ManualCompactAgentContext',
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
+  },
+  {
+    name: 'MarketplaceCatalogItem',
+    declaration: 'export interface MarketplaceCatalogItem {\n    readonly id: string;\n    readonly name: string;\n    readonly description: string;\n    readonly version: string;\n    readonly sourceRepository: string;\n    readonly sourceBranch: string;\n    readonly commit: string;\n    readonly installed: boolean;\n    readonly updateAvailable: boolean;\n}',
+  },
+  {
+    name: 'MarketplaceCatalogRequest',
+    declaration: 'export interface MarketplaceCatalogRequest {\n    readonly kind: MarketplaceKind;\n}',
+  },
+  {
+    name: 'MarketplaceCatalogValue',
+    declaration: 'export interface MarketplaceCatalogValue {\n    readonly items: readonly MarketplaceCatalogItem[];\n}',
+  },
+  {
+    name: 'MarketplaceInstallRequest',
+    declaration: 'export interface MarketplaceInstallRequest {\n    readonly kind: MarketplaceKind;\n    readonly id: string;\n}',
+  },
+  {
+    name: 'MarketplaceKind',
+    declaration: 'export type MarketplaceKind = \'armoury\' | \'treasury\';',
+  },
+  {
+    name: 'MarketplaceSkinRequest',
+    declaration: 'export interface MarketplaceSkinRequest {\n    readonly id: string;\n}',
+  },
+  {
+    name: 'MarketplaceSkinValue',
+    declaration: 'export interface MarketplaceSkinValue {\n    readonly id: string;\n    readonly name: string;\n    readonly colorScheme: \'light\' | \'dark\';\n    readonly tokens: Readonly<Record<string, string>>;\n}',
   },
   {
     name: 'Message',

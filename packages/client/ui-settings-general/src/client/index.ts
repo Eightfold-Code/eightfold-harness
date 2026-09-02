@@ -16,6 +16,10 @@ import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 // merge. Cross-plugin collaboration goes through the service, never a value
 // import (client bundle purity gate).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+// Type-only: the sidebar SlotMap declarations (`sidebar.footer.action`).
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+// Type-only: pulls ctx.theme into this program (skin registration).
+import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 // Type-only: pulls ctx.locale into this program.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -29,6 +33,8 @@ import { GeneralSection } from './GeneralSection.tsx'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
 import { SettingsDocumentStore } from './settings-document-store.ts'
+import { EightfoldMarketplace } from './EightfoldMarketplace.tsx'
+import type { EightfoldMarketplaceInjected } from './EightfoldMarketplace.tsx'
 import { en, zh, type SettingsKey } from './locales.ts'
 
 export type {
@@ -40,6 +46,7 @@ export type {
 export type { SettingsDocumentActionInjected, SettingsDocumentActionProps } from './SettingsDocumentAction.tsx'
 export type { SettingsDocumentState } from './settings-document-store.ts'
 export { SettingsDocumentStore } from './settings-document-store.ts'
+export type { EightfoldMarketplaceInjected } from './EightfoldMarketplace.tsx'
 export type { SettingsKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -57,7 +64,7 @@ const NS = 'settings'
  * ui-settings' apply, whose activation order relative to this one is NOT
  * constrained; registrations depend on their slots through `slots.inject()`.
  */
-export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settings', 'settingsScope']
+export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settings', 'remote.marketplace', 'theme', 'settingsScope']
 
 /**
  * Register the `settings` dictionaries, the chrome content, and the General
@@ -180,4 +187,55 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
   }, GeneralSection))
+
+  // The Eightfold marketplace: one Armoury and one Treasury trigger beside
+  // Settings, each loading its catalogue through the marketplace Remote.
+  // Armoury registrations additionally carry the skin-application face, which
+  // registers the installed skin into the theme registry and selects it.
+  const skinThemeDisposers = new Map<string, () => void>()
+  ctx.effect(() => () => {
+    for (const dispose of skinThemeDisposers.values()) dispose()
+  }, 'ui-settings-general: armoury skin themes')
+  const marketplacePort = (kind: 'armoury' | 'treasury'): EightfoldMarketplaceInjected => ({
+    kind,
+    catalog: async () => {
+      const carried = await ctx.remote.marketplace.catalog({ kind })
+      if (!carried.ok) throw carried.error
+      return carried.value
+    },
+    install: async (id) => {
+      const carried = await ctx.remote.marketplace.install({ kind, id })
+      if (!carried.ok) throw carried.error
+    },
+  })
+  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
+    name: 'sidebar.footer.action',
+    id: 'eightfold-armoury',
+    locale: NS,
+    inject: (): EightfoldMarketplaceInjected => ({
+      ...marketplacePort('armoury'),
+      setAsTheme: async (id) => {
+        const carried = await ctx.remote.marketplace.skin({ id })
+        if (!carried.ok) throw carried.error
+        const { id: themeId, colorScheme, tokens } = carried.value
+        // Re-applying a skin replaces its registration so an updated skin's
+        // tokens take effect; disposing the active one resets the preference,
+        // which the selection below immediately re-establishes.
+        skinThemeDisposers.get(themeId)?.()
+        skinThemeDisposers.set(themeId, ctx.theme.register({
+          id: themeId,
+          colorScheme,
+          tokens: { ...tokens },
+        }))
+        ctx.theme.setTheme(themeId)
+      },
+      getActiveThemeId: () => ctx.theme.getTheme().preference,
+    }),
+  }, EightfoldMarketplace))
+  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
+    name: 'sidebar.footer.action',
+    id: 'eightfold-treasury',
+    locale: NS,
+    inject: (): EightfoldMarketplaceInjected => marketplacePort('treasury'),
+  }, EightfoldMarketplace))
 }

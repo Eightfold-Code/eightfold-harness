@@ -1,5 +1,7 @@
 # @deepseek-ai/dsh-treasury
 
+English | [中文](README.zh.md)
+
 The Eightfold Treasury distribution layer. This package fetches the public Treasury registry, structurally validates the registry and `eightfold.json` manifests, and installs adaptations: it pins a source branch to a commit, downloads the codeload tarball for that commit, validates the manifest and every archive path before writing, extracts safely under `$EIGHTFOLD_HOME`, and records the manifest and requested permissions. See [docs/eightfold/treasury.md](../../../docs/eightfold/treasury.md) for the distribution design.
 
 ## Modules
@@ -7,7 +9,7 @@ The Eightfold Treasury distribution layer. This package fetches the public Treas
 - `client.ts` — transport for the registry JSON, with a timeout and positioned errors. `$EIGHTFOLD_TREASURY_URL` overrides the default `https://raw.githubusercontent.com/Eightfold-Code/eightfold-treasury/main/registry.json`.
 - `registry.ts` — `parseRegistry` structurally validates the registry document (`schemaVersion` plus an `adaptations` map of id to descriptor). `isCompatible` applies the descriptor's `eightfoldHarness` floor to a harness version.
 - `manifest.ts` — `parseManifest` structurally validates an adaptation's `eightfold.json` (`schemaVersion`, `id`, `name`, `version`, `description`, `entry`, `compatibility`, `permissions`, `dependencies`).
-- `installer.ts` — `installAdaptation` resolves the pinned commit (`git ls-remote` on the branch head, or an explicit source `commit`), downloads `https://codeload.github.com/<repo>/tar.gz/<commit>`, validates the manifest and every archive path before writing, extracts atomically to `$EIGHTFOLD_HOME/adaptations/<id>`, and records the result in `$EIGHTFOLD_HOME/installed.json`. `removeAdaptation` deletes an installation. `resolveEightfoldHome` resolves `$EIGHTFOLD_HOME`, defaulting to `.eightfold/` under the invoking directory.
+- `installer.ts` — `installAdaptation` resolves the pinned commit (`git ls-remote` on the branch head, or an explicit source `commit`), downloads `https://codeload.github.com/<repo>/tar.gz/<commit>`, validates the manifest and every archive path before writing, extracts atomically to `$EIGHTFOLD_HOME/adaptations/<id>`, and records the result in `$EIGHTFOLD_HOME/installed.json`. `removeAdaptation` deletes an installation. `resolveEightfoldHome` resolves `$EIGHTFOLD_HOME`, defaulting to `.eightfold/` under the invoking directory. The extraction, source-validation, and tar helpers (`planExtraction`, `extractAtomically`, `parseDescriptorSource`, `parseDescriptorCompatibility`, `parseInstalledSource`, `downloadBytes`, `resolveCommit`, `decompressTarGz`, `parseTarArchive`) are exported for the other distribution packages in this group.
 
 ## Local storage
 

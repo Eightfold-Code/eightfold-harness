@@ -1,5 +1,7 @@
 # Eightfold Harness bootstrap record
 
+English | [中文](bootstrap.zh.md)
+
 This record captures the first complete boot of the Eightfold Harness fork on this machine: the upstream base, the environment, each bootstrap gate with its real outcome, and the live Treasury end-to-end proof. It is evidence, not a tutorial; reproduce the loop with [scripts/eightfold-e2e.sh](../../scripts/eightfold-e2e.sh).
 
 ## Upstream base

@@ -49,6 +49,9 @@
       "path": "../../llm/llm"
     },
     {
+      "path": "../../treasury/marketplace"
+    },
+    {
       "path": "../../preset/agent-presets"
     },
     {

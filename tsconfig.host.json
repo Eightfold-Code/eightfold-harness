@@ -163,6 +163,8 @@
     { "path": "./packages/guard/timeout-policy" },
     { "path": "./packages/runtime-diagnostics/invariants" },
     { "path": "./packages/treasury/treasury" },
+    { "path": "./packages/treasury/armoury" },
+    { "path": "./packages/treasury/marketplace" },
     { "path": "./packages/test-support/agent-loop-testkit" },
     { "path": "./packages/acp/acp" },
     { "path": "./packages/bundle/acp-app" },

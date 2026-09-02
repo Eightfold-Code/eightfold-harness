@@ -1,5 +1,7 @@
 # Treasury: capability distribution for Eightfold Harness
 
+English | [中文](treasury.zh.md)
+
 Treasury is the Eightfold distribution layer. Users discover capabilities and install them on demand. A capability ships as an *adaptation*: a plugin source archive plus a manifest that declares identity, permissions, and compatibility.
 
 Treasury may also publish named *bundles*. A bundle is only a registry-level list of adaptation ids; it does not introduce another plugin format. The Harness expands the bundle and installs each referenced adaptation through the same validated installer path.
